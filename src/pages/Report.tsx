@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Upload, MapPin, Calendar, Info, FileCheck } from "lucide-react";
+import { Camera, Upload, MapPin, Calendar, Info, FileCheck, Check, EyeOff } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -17,11 +17,15 @@ import {
   SelectTrigger,
   SelectValue, 
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { useAuth } from '@/context/AuthContext';
 
 const Report = () => {
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('type') === 'found' ? 'found' : 'lost';
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
   
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -34,6 +38,20 @@ const Report = () => {
             <p className="text-muted-foreground">
               Report a lost or found item at FAST-NUCES Islamabad campus
             </p>
+            
+            {!isAuthenticated && (
+              <div className="mt-4">
+                <Card className="bg-amber-50 border-amber-200">
+                  <CardContent className="py-4 text-amber-800">
+                    <Info className="h-5 w-5 inline-block mr-2" />
+                    <span className="text-sm">
+                      Consider <a href="/login" className="text-primary underline">logging in</a> to track your reports and receive updates.
+                      You can still report anonymously without logging in.
+                    </span>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
           
           <Tabs defaultValue={defaultTab} className="w-full">
@@ -60,12 +78,15 @@ const Report = () => {
 
 const ReportLostItemForm = () => {
   const { toast } = useToast();
+  const [reportAnonymously, setReportAnonymously] = useState(false);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast({
       title: "Report Submitted",
-      description: "Your lost item report has been submitted successfully!",
+      description: reportAnonymously 
+        ? "Your anonymous lost item report has been submitted successfully!" 
+        : "Your lost item report has been submitted successfully!",
     });
   };
   
@@ -159,14 +180,34 @@ const ReportLostItemForm = () => {
           </div>
           
           <div className="space-y-2">
-            <label htmlFor="contact" className="text-sm font-medium">Contact Information</label>
-            <Input id="contact" placeholder="Your email or phone number" required />
+            <div className="flex items-center space-x-2 mb-2">
+              <Checkbox id="report-anonymously" checked={reportAnonymously} onCheckedChange={(checked) => setReportAnonymously(checked as boolean)} />
+              <Label htmlFor="report-anonymously" className="flex items-center cursor-pointer">
+                <EyeOff className="h-4 w-4 mr-2 text-muted-foreground" />
+                Report Anonymously
+              </Label>
+            </div>
+            
+            {!reportAnonymously && (
+              <>
+                <label htmlFor="contact" className="text-sm font-medium">Contact Information</label>
+                <Input id="contact" placeholder="Your email or phone number" required={!reportAnonymously} />
+              </>
+            )}
+            
+            {reportAnonymously && (
+              <p className="text-xs text-muted-foreground">
+                Your personal information will be hidden. Note that anonymous reports may be harder to follow up on.
+              </p>
+            )}
           </div>
           
           <div className="flex items-start gap-2">
             <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <p className="text-sm text-muted-foreground">
-              Your contact information will only be shared with verified staff members or the person who found your item.
+              {reportAnonymously 
+                ? "Your information will be kept private. Staff members will still be able to assist with your report."
+                : "Your contact information will only be shared with verified staff members or the person who found your item."}
             </p>
           </div>
           
@@ -182,12 +223,15 @@ const ReportLostItemForm = () => {
 
 const ReportFoundItemForm = () => {
   const { toast } = useToast();
+  const [reportAnonymously, setReportAnonymously] = useState(false);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast({
       title: "Report Submitted",
-      description: "Thank you for reporting a found item!",
+      description: reportAnonymously 
+        ? "Thank you for anonymously reporting a found item!" 
+        : "Thank you for reporting a found item!",
     });
   };
   
@@ -281,11 +325,26 @@ const ReportFoundItemForm = () => {
           </div>
           
           <div className="space-y-2">
-            <label htmlFor="contact" className="text-sm font-medium">Contact Information (Optional)</label>
-            <Input id="contact" placeholder="Your email or phone number" />
-            <p className="text-xs text-muted-foreground">
-              Leave blank to report anonymously. The item will be directed to the appropriate lost & found office.
-            </p>
+            <div className="flex items-center space-x-2 mb-2">
+              <Checkbox id="report-anonymously" checked={reportAnonymously} onCheckedChange={(checked) => setReportAnonymously(checked as boolean)} />
+              <Label htmlFor="report-anonymously" className="flex items-center cursor-pointer">
+                <EyeOff className="h-4 w-4 mr-2 text-muted-foreground" />
+                Report Anonymously
+              </Label>
+            </div>
+            
+            {!reportAnonymously && (
+              <>
+                <label htmlFor="contact" className="text-sm font-medium">Contact Information</label>
+                <Input id="contact" placeholder="Your email or phone number" required={!reportAnonymously} />
+              </>
+            )}
+            
+            {reportAnonymously && (
+              <p className="text-xs text-muted-foreground">
+                You'll remain anonymous. The item will be directed to the appropriate lost & found office.
+              </p>
+            )}
           </div>
           
           <div className="flex items-start gap-2">

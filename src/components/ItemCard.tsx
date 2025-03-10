@@ -77,7 +77,7 @@ const ItemCard: React.FC<ItemProps> = ({
 
       <CardFooter className="p-4 pt-0 flex-none">
         <Button asChild className="w-full">
-          <Link to={`/item/${id}`}>
+          <Link to={`/items/${id}`}>
             <Eye className="mr-2 h-4 w-4" />
             View Details
           </Link>

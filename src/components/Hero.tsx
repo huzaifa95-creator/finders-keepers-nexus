@@ -14,13 +14,13 @@ const Hero = () => {
         <div className="flex flex-col lg:flex-row gap-12 items-center">
           <div className="flex-1 text-center lg:text-left max-w-2xl mx-auto lg:mx-0">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 tracking-tight">
-              <span className="gradient-text">Lost something?</span>
+              <span className="gradient-text">Lost something</span>
               <br />
-              We'll help you find it.
+              at FAST-NUCES?
             </h1>
             <p className="text-lg mb-8 text-muted-foreground max-w-xl mx-auto lg:mx-0">
-              A digital community platform where university students can report lost items, 
-              find recovered belongings, and reconnect with their possessions quickly and easily.
+              A digital platform where FAST-NUCES Islamabad students can report lost items, 
+              find recovered belongings, and reconnect with their possessions without visiting multiple offices.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Button asChild size="lg" className="rounded-full">
@@ -50,23 +50,34 @@ const Hero = () => {
                     </div>
                   </div>
                   
-                  {[1, 2, 3].map((item) => (
-                    <div key={item} className="flex gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors">
+                  {[
+                    {
+                      title: "Student ID Card",
+                      location: "Found at Library",
+                      time: "2 hours ago",
+                      icon: <Shield size={20} />
+                    },
+                    {
+                      title: "Calculator (FX-991ES)",
+                      location: "Found at A-Block",
+                      time: "1 day ago",
+                      icon: <FileSymlink size={20} />
+                    },
+                    {
+                      title: "Water Bottle",
+                      location: "Found at Cafeteria",
+                      time: "3 days ago",
+                      icon: <Search size={20} />
+                    }
+                  ].map((item, index) => (
+                    <div key={index} className="flex gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors">
                       <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
-                        {item === 1 && <Shield size={20} />}
-                        {item === 2 && <FileSymlink size={20} />}
-                        {item === 3 && <Search size={20} />}
+                        {item.icon}
                       </div>
                       <div>
-                        <h4 className="font-medium text-sm">
-                          {item === 1 && "Student ID Card"}
-                          {item === 2 && "Apple AirPods"}
-                          {item === 3 && "Water Bottle"}
-                        </h4>
+                        <h4 className="font-medium text-sm">{item.title}</h4>
                         <p className="text-xs text-muted-foreground">
-                          {item === 1 && "Found at Library • 2 hours ago"}
-                          {item === 2 && "Found at Cafeteria • 1 day ago"}
-                          {item === 3 && "Found at Gym • 3 days ago"}
+                          {item.location} • {item.time}
                         </p>
                       </div>
                     </div>

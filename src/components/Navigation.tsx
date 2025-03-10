@@ -43,7 +43,7 @@ const Navigation = () => {
                 F
               </div>
             </div>
-            <span className="hidden font-bold sm:inline-block text-xl">FindersNexus</span>
+            <span className="hidden font-bold sm:inline-block text-xl">FAST-NUCES L&F</span>
           </Link>
         </div>
 
@@ -103,8 +103,8 @@ const Navigation = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={handleLogin}>Login</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogin}>Register</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogin}>FAST Student Login</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogin}>Staff Login</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

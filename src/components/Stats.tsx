@@ -7,10 +7,10 @@ const Stats = () => {
       <div className="container mx-auto px-4">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <h2 className="text-3xl font-bold mb-4">
-            <span className="gradient-text">Helping Students</span> Recover What Matters
+            <span className="gradient-text">Helping FAST Students</span> Recover What Matters
           </h2>
           <p className="text-muted-foreground">
-            Our platform has helped hundreds of university students reconnect with their lost belongings,
+            Our platform has helped FAST-NUCES Islamabad students reconnect with their lost belongings,
             making campus life a little less stressful.
           </p>
         </div>
@@ -36,15 +36,15 @@ const Stats = () => {
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
               <h3 className="text-2xl font-bold mb-4">
-                University Success Stories
+                FAST-NUCES Success Stories
               </h3>
               <p className="text-muted-foreground mb-6">
-                Since implementing our Lost & Found platform, universities have reported:
+                Since implementing our Lost & Found platform at FAST-NUCES Islamabad, we've seen:
               </p>
               <ul className="space-y-3">
                 {[
                   "40% reduction in unclaimed lost items",
-                  "65% decrease in time spent managing lost property",
+                  "65% decrease in time spent visiting multiple offices",
                   "Higher student satisfaction with campus services",
                   "More valuable items being returned to their owners"
                 ].map((point, i) => (
@@ -61,14 +61,14 @@ const Stats = () => {
             <div className="space-y-4">
               <div className="bg-white/50 p-4 rounded-lg border border-border">
                 <blockquote className="italic text-muted-foreground">
-                  "The FindersNexus platform has transformed how we handle lost items on campus. 
+                  "The Lost & Found platform has transformed how we handle lost items on campus. 
                   Students love the easy reporting process, and our staff saves countless hours."
                 </blockquote>
                 <div className="mt-3 flex items-center gap-2">
                   <div className="h-8 w-8 rounded-full bg-primary/20"></div>
                   <div>
-                    <p className="font-medium text-sm">Sarah Thompson</p>
-                    <p className="text-xs text-muted-foreground">Campus Services Director</p>
+                    <p className="font-medium text-sm">Dr. M. Asif Khan</p>
+                    <p className="text-xs text-muted-foreground">Campus Manager, FAST-NUCES</p>
                   </div>
                 </div>
               </div>
@@ -81,8 +81,8 @@ const Stats = () => {
                 <div className="mt-3 flex items-center gap-2">
                   <div className="h-8 w-8 rounded-full bg-accent/20"></div>
                   <div>
-                    <p className="font-medium text-sm">Michael Chen</p>
-                    <p className="text-xs text-muted-foreground">Computer Science Student</p>
+                    <p className="font-medium text-sm">Hasan Ahmed</p>
+                    <p className="text-xs text-muted-foreground">CS Student, Batch 2025</p>
                   </div>
                 </div>
               </div>

@@ -22,20 +22,20 @@ const Footer = () => {
                   F
                 </div>
               </div>
-              <span className="font-bold text-xl">FindersNexus</span>
+              <span className="font-bold text-xl">FAST-NUCES L&F</span>
             </Link>
             <p className="mt-4 text-muted-foreground">
-              Connecting university students with their lost belongings through an 
+              Connecting FAST-NUCES Islamabad students with their lost belongings through an 
               innovative digital platform.
             </p>
             <div className="flex gap-4 mt-6">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href="https://www.facebook.com/FASTNU.ISB/" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <Facebook size={20} />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href="https://twitter.com/fastnu_isb" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <Twitter size={20} />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href="https://www.instagram.com/fastnu_isb/" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <Instagram size={20} />
               </a>
             </div>
@@ -70,25 +70,25 @@ const Footer = () => {
               <li className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <span className="text-muted-foreground">
-                  University Campus, Innovation Building, 3rd Floor
+                  FAST-NUCES, Block B, Faisal Town, Islamabad, Pakistan
                 </span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-primary" />
                 <a 
-                  href="mailto:contact@findersnexus.edu"
+                  href="mailto:helpdesk.isb@nu.edu.pk"
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
-                  contact@findersnexus.edu
+                  helpdesk.isb@nu.edu.pk
                 </a>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-primary" />
                 <a 
-                  href="tel:+1234567890"
+                  href="tel:+92-51-111-128-128"
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
-                  (123) 456-7890
+                  051-111-128-128
                 </a>
               </li>
             </ul>
@@ -99,11 +99,11 @@ const Footer = () => {
             <ul className="space-y-2">
               <li className="flex justify-between">
                 <span className="text-muted-foreground">Monday - Friday</span>
-                <span>9AM - 6PM</span>
+                <span>9AM - 5PM</span>
               </li>
               <li className="flex justify-between">
                 <span className="text-muted-foreground">Saturday</span>
-                <span>10AM - 4PM</span>
+                <span>9AM - 1PM</span>
               </li>
               <li className="flex justify-between">
                 <span className="text-muted-foreground">Sunday</span>
@@ -113,7 +113,7 @@ const Footer = () => {
             
             <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
               <p className="text-sm">
-                Need urgent assistance? Contact campus security at extension 555.
+                Need urgent assistance? Contact FAST-NUCES security at extension 555.
               </p>
             </div>
           </div>
@@ -121,11 +121,11 @@ const Footer = () => {
 
         <div className="mt-12 pt-6 border-t border-border/50 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} FindersNexus. All rights reserved.
+            &copy; {new Date().getFullYear()} FAST-NUCES Lost & Found Portal. All rights reserved.
           </p>
           
           <p className="text-sm text-muted-foreground flex items-center">
-            Made with <Heart className="h-4 w-4 text-red-500 mx-1" /> by the FindersNexus Team
+            Made with <Heart className="h-4 w-4 text-red-500 mx-1" /> by FAST students
           </p>
           
           <div className="flex gap-4">

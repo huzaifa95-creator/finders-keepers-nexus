@@ -13,6 +13,7 @@ import {
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from '@/context/AuthContext';
+import NotificationCenter from './NotificationCenter';
 
 const Navigation = () => {
   const location = useLocation();
@@ -94,18 +95,9 @@ const Navigation = () => {
             <span className="sr-only">Search</span>
           </Button>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => toast({
-              title: "Notifications",
-              description: "Notification system coming soon!",
-            })}
-          >
-            <Bell className="h-5 w-5" />
-            <span className="sr-only">Notifications</span>
-          </Button>
+          {isAuthenticated && (
+            <NotificationCenter />
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

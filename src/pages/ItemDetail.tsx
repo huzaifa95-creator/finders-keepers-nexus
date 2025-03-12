@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -27,52 +27,218 @@ import {
   Flag,
   CheckCircle,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
-// Combined mock data
-const mockItems = [
-  {
-    id: "1",
-    title: "MacBook Pro 16-inch",
-    category: "Electronics",
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1626&q=80",
-    location: "University Library, 2nd Floor",
-    date: "Oct 12, 2023",
-    status: "lost" as const,
-    isHighValue: true,
-    description: "Space Gray MacBook Pro with stickers on the lid. Last seen in the study area near the windows. The charger was also left behind.",
-    reportedBy: "Anonymous",
-    contactMethod: "Through platform only",
-    identifyingFeatures: "Has a crack on the bottom right corner of the screen and a distinctive Star Wars sticker on the lid."
-  },
-  {
-    id: "2",
-    title: "Silver iPhone 13",
-    category: "Electronics",
-    image: "https://images.unsplash.com/photo-1592286927505-1def25115481?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    location: "Science Building, Room 302",
-    date: "Oct 23, 2023",
-    status: "found" as const,
-    isHighValue: true,
-    description: "Silver iPhone 13 in a clear case found under a desk in Science Building Room 302 after the Physics 101 lecture.",
-    reportedBy: "Campus Security",
-    contactMethod: "Visit Campus Security Office (Building C, Room 110)",
-    identifyingFeatures: "Clear case with a small crack in the top right corner. Phone is locked with a passcode."
-  }
-];
+interface Item {
+  _id: string;
+  title: string;
+  category: string;
+  description: string;
+  image: string;
+  location: string;
+  createdAt: string;
+  status: 'lost' | 'found';
+  isHighValue: boolean;
+  contactMethod: string;
+  reportedBy: {
+    name: string;
+    _id: string;
+  };
+  identifyingFeatures?: string;
+}
+
+interface Comment {
+  _id: string;
+  text: string;
+  createdAt: string;
+  user: {
+    name: string;
+    _id: string;
+  };
+}
 
 const ItemDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const [item, setItem] = useState<Item | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [isClaimDialogOpen, setIsClaimDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   
-  // Find the item that matches the ID
-  const item = mockItems.find(item => item.id === id);
+  // Fetch item data
+  useEffect(() => {
+    const fetchItemDetail = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const response = await fetch(`http://localhost:5000/api/items/${id}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch item details');
+        }
+        
+        const data = await response.json();
+        setItem(data);
+        
+        // Fetch comments for this item
+        const commentsResponse = await fetch(`http://localhost:5000/api/items/${id}/comments`);
+        
+        if (commentsResponse.ok) {
+          const commentsData = await commentsResponse.json();
+          setComments(commentsData);
+        }
+        
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching item details:', err);
+        setError('Failed to load item details. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchItemDetail();
+  }, [id]);
   
-  if (!item) {
+  const handleClaimSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    
+    // Get form data
+    const formData = new FormData(event.currentTarget);
+    const claimData = {
+      itemId: id,
+      description: formData.get('description'),
+      contactInfo: formData.get('contactInfo'),
+      proofDetails: formData.get('proofDetails')
+    };
+    
+    setSubmitting(true);
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/items/${id}/claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(claimData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit claim');
+      }
+      
+      toast({
+        title: "Claim Submitted",
+        description: "Your claim has been submitted. You will be notified when it's reviewed.",
+      });
+      setIsClaimDialogOpen(false);
+    } catch (err) {
+      console.error('Error submitting claim:', err);
+      toast({
+        title: "Error",
+        description: "Failed to submit claim. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
+  const handleComment = async () => {
+    if (!commentText.trim() || !id) return;
+    
+    setSubmitting(true);
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/items/${id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: commentText }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to post comment');
+      }
+      
+      const newComment = await response.json();
+      setComments([...comments, newComment]);
+      setCommentText("");
+      
+      toast({
+        title: "Comment Posted",
+        description: "Your comment has been posted successfully.",
+      });
+    } catch (err) {
+      console.error('Error posting comment:', err);
+      toast({
+        title: "Error",
+        description: "Failed to post comment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Format the date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+  
+  // Time ago format
+  const timeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+    
+    return Math.floor(seconds) + " seconds ago";
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navigation />
+        <main className="flex-grow container mx-auto px-4 py-12 flex justify-center items-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+            <h2 className="text-xl font-semibold">Loading item details...</h2>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !item) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navigation />
@@ -80,7 +246,7 @@ const ItemDetail = () => {
           <AlertTriangle className="h-16 w-16 mx-auto text-destructive mb-4" />
           <h1 className="text-3xl font-bold mb-4">Item Not Found</h1>
           <p className="text-muted-foreground mb-8">
-            The item you're looking for doesn't exist or has been removed.
+            {error || "The item you're looking for doesn't exist or has been removed."}
           </p>
           <Button asChild>
             <Link to="/">Return to Home</Link>
@@ -90,24 +256,6 @@ const ItemDetail = () => {
       </div>
     );
   }
-  
-  const handleClaimSubmit = () => {
-    toast({
-      title: "Claim Submitted",
-      description: "Your claim has been submitted. You will be notified when it's reviewed.",
-    });
-    setIsClaimDialogOpen(false);
-  };
-  
-  const handleComment = () => {
-    if (commentText.trim()) {
-      toast({
-        title: "Comment Posted",
-        description: "Your comment has been posted successfully.",
-      });
-      setCommentText("");
-    }
-  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -130,9 +278,13 @@ const ItemDetail = () => {
           <div className="lg:col-span-1">
             <div className="rounded-lg overflow-hidden border border-border bg-card h-[300px] sm:h-[400px] mb-4">
               <img 
-                src={item.image} 
+                src={`http://localhost:5000/${item.image}`} 
                 alt={item.title} 
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = '/placeholder.svg';
+                }}
               />
             </div>
             
@@ -183,14 +335,18 @@ const ItemDetail = () => {
                   <User className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium text-sm">Reported By</p>
-                    <p className="text-muted-foreground text-sm">{item.reportedBy}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {item.reportedBy?.name || "Anonymous"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
                   <MessageCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium text-sm">Contact Method</p>
-                    <p className="text-muted-foreground text-sm">{item.contactMethod}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {item.contactMethod || "Through platform only"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -219,7 +375,7 @@ const ItemDetail = () => {
                 
                 <div className="flex items-center text-muted-foreground">
                   <Clock className="h-4 w-4 mr-1 text-primary/70" />
-                  <span>{item.date}</span>
+                  <span>{formatDate(item.createdAt)}</span>
                 </div>
                 
                 <div className="flex items-center text-muted-foreground">
@@ -236,10 +392,14 @@ const ItemDetail = () => {
                 {item.description}
               </p>
               
-              <h3 className="font-semibold mb-2">Identifying Features</h3>
-              <p className="text-muted-foreground">
-                {item.identifyingFeatures}
-              </p>
+              {item.identifyingFeatures && (
+                <>
+                  <h3 className="font-semibold mb-2">Identifying Features</h3>
+                  <p className="text-muted-foreground">
+                    {item.identifyingFeatures}
+                  </p>
+                </>
+              )}
             </div>
             
             {/* Claim Button */}
@@ -272,47 +432,70 @@ const ItemDetail = () => {
                     </DialogDescription>
                   </DialogHeader>
                   
-                  <div className="space-y-4 py-4">
-                    {item.status === 'found' && (
+                  <form onSubmit={handleClaimSubmit}>
+                    <div className="space-y-4 py-4">
+                      {item.status === 'found' && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">
+                            Describe a unique feature of this item that only the owner would know
+                          </label>
+                          <Textarea 
+                            name="proofDetails"
+                            placeholder="E.g., serial number, distinctive marks, contents..." 
+                            className="min-h-[100px]"
+                            required
+                          />
+                        </div>
+                      )}
+                      
                       <div className="space-y-2">
                         <label className="text-sm font-medium">
-                          Describe a unique feature of this item that only the owner would know
+                          {item.status === 'lost' 
+                            ? "Where and when did you find it?" 
+                            : "When and where did you lose it?"}
                         </label>
                         <Textarea 
-                          placeholder="E.g., serial number, distinctive marks, contents..." 
+                          name="description"
+                          placeholder="Please be as specific as possible..." 
                           className="min-h-[100px]"
+                          required
                         />
                       </div>
-                    )}
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        {item.status === 'lost' 
-                          ? "Where and when did you find it?" 
-                          : "When and where did you lose it?"}
-                      </label>
-                      <Textarea 
-                        placeholder="Please be as specific as possible..." 
-                        className="min-h-[100px]"
-                      />
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Your Contact Information</label>
+                        <Input 
+                          name="contactInfo"
+                          placeholder="Email or phone number" 
+                          required
+                        />
+                      </div>
                     </div>
                     
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Your Contact Information</label>
-                      <Input placeholder="Email or phone number" />
-                    </div>
-                  </div>
-                  
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsClaimDialogOpen(false)}>
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Cancel
-                    </Button>
-                    <Button onClick={handleClaimSubmit}>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Submit
-                    </Button>
-                  </DialogFooter>
+                    <DialogFooter>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setIsClaimDialogOpen(false)}
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={submitting}>
+                        {submitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Submit
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
                 </DialogContent>
               </Dialog>
             </div>
@@ -322,35 +505,26 @@ const ItemDetail = () => {
               <h2 className="text-xl font-semibold mb-4">Comments</h2>
               
               <div className="space-y-4 mb-6">
-                <div className="flex gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
-                    J
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">John Doe</p>
-                      <span className="text-xs text-muted-foreground">2 days ago</span>
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <div key={comment._id} className="flex gap-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
+                        {comment.user?.name.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{comment.user?.name || 'Anonymous'}</p>
+                          <span className="text-xs text-muted-foreground">{timeAgo(comment.createdAt)}</span>
+                        </div>
+                        <p className="text-muted-foreground">
+                          {comment.text}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-muted-foreground">
-                      I think I saw something similar near the vending machines in the Student Center around 3 PM yesterday.
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex gap-3">
-                  <div className="h-10 w-10 rounded-full bg-accent/20 flex items-center justify-center text-accent shrink-0">
-                    S
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">Sarah Smith</p>
-                      <span className="text-xs text-muted-foreground">1 day ago</span>
-                    </div>
-                    <p className="text-muted-foreground">
-                      Was there a distinctive sticker or mark that can help identify it?
-                    </p>
-                  </div>
-                </div>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">No comments yet. Be the first to comment!</p>
+                )}
               </div>
               
               <div className="space-y-3">
@@ -361,9 +535,21 @@ const ItemDetail = () => {
                   onChange={(e) => setCommentText(e.target.value)}
                 />
                 <div className="flex justify-end">
-                  <Button onClick={handleComment}>
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    Post Comment
+                  <Button 
+                    onClick={handleComment} 
+                    disabled={!commentText.trim() || submitting}
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Posting...
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Post Comment
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>

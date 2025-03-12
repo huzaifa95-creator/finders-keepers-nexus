@@ -22,24 +22,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demonstration
-const MOCK_USERS = [
-  {
-    id: '1',
-    name: 'Student User',
-    email: 'student@nu.edu.pk',
-    password: 'password123',
-    role: 'student' as UserRole,
-  },
-  {
-    id: '2',
-    name: 'Admin User',
-    email: 'admin@nu.edu.pk',
-    password: 'admin123',
-    role: 'admin' as UserRole,
-  }
-];
-
 export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,7 +29,9 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
   // Check if user is already logged in
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('token');
+    
+    if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser));
     }
     setIsLoading(false);
@@ -56,59 +40,85 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     
-    // Simulate API call
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        const foundUser = MOCK_USERS.find(
-          (u) => u.email === email && u.password === password
-        );
-        
-        if (foundUser) {
-          const { password, ...userWithoutPassword } = foundUser;
-          setUser(userWithoutPassword);
-          localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-          setIsLoading(false);
-          resolve();
-        } else {
-          setIsLoading(false);
-          reject(new Error('Invalid email or password'));
-        }
-      }, 1000);
-    });
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Invalid email or password');
+      }
+      
+      const data = await response.json();
+      
+      // Transform backend user to frontend format
+      const userData: User = {
+        id: data.user._id,
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role,
+      };
+      
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', data.token);
+      
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const signup = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     
-    // Simulate API call
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        const userExists = MOCK_USERS.some((u) => u.email === email);
-        
-        if (userExists) {
-          setIsLoading(false);
-          reject(new Error('User with this email already exists'));
-        } else {
-          // In a real app, this would be handled by the backend
-          const newUser = {
-            id: Math.random().toString(36).substr(2, 9),
-            name,
-            email,
-            role: 'student' as UserRole,
-          };
-          
-          setUser(newUser);
-          localStorage.setItem('user', JSON.stringify(newUser));
-          setIsLoading(false);
-          resolve();
-        }
-      }, 1000);
-    });
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+      
+      const data = await response.json();
+      
+      // Transform backend user to frontend format
+      const userData: User = {
+        id: data.user._id,
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role || 'student',
+      };
+      
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', data.token);
+      
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   return (

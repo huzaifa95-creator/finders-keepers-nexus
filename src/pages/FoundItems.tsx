@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ItemCard from "@/components/ItemCard";
@@ -12,79 +12,76 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Search, Filter, SlidersHorizontal } from "lucide-react";
+import { Search, Filter, SlidersHorizontal, PackageX } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Card } from '@/components/ui/card';
 
-// Mock data for display
-const mockFoundItems = [
-  {
-    id: "1",
-    title: "Silver iPhone 13",
-    category: "Electronics",
-    image: "https://images.unsplash.com/photo-1592286927505-1def25115481?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    location: "Science Building, Room 302",
-    date: "Oct 23, 2023",
-    status: "found" as const,
-    isHighValue: true
-  },
-  {
-    id: "2",
-    title: "Black Umbrella",
-    category: "Personal Items",
-    image: "https://images.unsplash.com/photo-1575403071235-5a3b5ba955e3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    location: "Student Union Building, Lobby",
-    date: "Oct 24, 2023",
-    status: "found" as const
-  },
-  {
-    id: "3",
-    title: "Nike Running Shoes",
-    category: "Clothing & Accessories",
-    image: "https://images.unsplash.com/photo-1605408499391-6368c628ef42?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80",
-    location: "Gymnasium, Locker Room",
-    date: "Oct 25, 2023",
-    status: "found" as const
-  },
-  {
-    id: "4",
-    title: "Psychology Textbook",
-    category: "Books & Supplies",
-    image: "https://images.unsplash.com/photo-1589998059171-988d887df646?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1376&q=80",
-    location: "Psychology Department, Room 105",
-    date: "Oct 26, 2023",
-    status: "found" as const
-  },
-  {
-    id: "5",
-    title: "Wireless Mouse",
-    category: "Electronics",
-    image: "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1365&q=80",
-    location: "Computer Lab, Engineering Building",
-    date: "Oct 27, 2023",
-    status: "found" as const
-  },
-  {
-    id: "6",
-    title: "Prescription Glasses",
-    category: "Personal Items",
-    image: "https://images.unsplash.com/photo-1574258495973-f010dfbb5371?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-    location: "Library, Study Room 4",
-    date: "Oct 28, 2023",
-    status: "found" as const
-  }
-];
+interface Item {
+  _id: string;
+  title: string;
+  category: string;
+  image: string;
+  location: string;
+  createdAt: string;
+  status: 'lost' | 'found';
+  isHighValue: boolean;
+}
 
 const FoundItems = () => {
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [category, setCategory] = useState("all");
+  const { toast } = useToast();
   
-  // Filter logic would go here in a real app
-  const filteredItems = mockFoundItems.filter(item => 
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost:5000/api/items/found');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch found items');
+        }
+        
+        const data = await response.json();
+        setItems(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching found items:', err);
+        setError('Failed to load items. Please try again later.');
+        toast({
+          title: "Error",
+          description: "Failed to load found items. Please try again later.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchItems();
+  }, [toast]);
+  
+  // Filter logic
+  const filteredItems = items.filter(item => 
     item.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (category === "all" || item.category === category)
   );
   
-  const categories = ["all", ...new Set(mockFoundItems.map(item => item.category))];
+  const categories = ["all", ...Array.from(new Set(items.map(item => item.category)))];
+
+  // Format the date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -187,7 +184,9 @@ const FoundItems = () => {
         {/* Results */}
         <div>
           <div className="flex justify-between items-center mb-4">
-            <p className="text-muted-foreground">Showing {filteredItems.length} results</p>
+            <p className="text-muted-foreground">
+              {loading ? 'Loading items...' : `Showing ${filteredItems.length} results`}
+            </p>
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
               <Select defaultValue="newest">
@@ -203,16 +202,59 @@ const FoundItems = () => {
             </div>
           </div>
           
-          {filteredItems.length > 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((_, index) => (
+                <Card key={index} className="h-[350px] animate-pulse">
+                  <div className="h-48 bg-muted"></div>
+                  <CardHeader className="p-4">
+                    <div className="h-5 w-2/3 bg-muted rounded"></div>
+                    <div className="h-4 w-1/3 bg-muted rounded mt-2"></div>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <div className="h-4 w-full bg-muted rounded"></div>
+                      <div className="h-4 w-2/3 bg-muted rounded"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-12 border border-dashed border-border rounded-lg">
+              <p className="text-lg font-medium text-destructive">{error}</p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                variant="outline" 
+                className="mt-4"
+              >
+                Try Again
+              </Button>
+            </div>
+          ) : filteredItems.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems.map((item) => (
-                <ItemCard key={item.id} {...item} />
+                <ItemCard 
+                  key={item._id}
+                  id={item._id}
+                  title={item.title}
+                  category={item.category}
+                  image={`http://localhost:5000/${item.image}`}
+                  location={item.location}
+                  date={formatDate(item.createdAt)}
+                  status="found"
+                  isHighValue={item.isHighValue}
+                />
               ))}
             </div>
           ) : (
             <div className="text-center py-12 border border-dashed border-border rounded-lg">
-              <p className="text-lg font-medium">No items match your search criteria</p>
-              <p className="text-muted-foreground">Try adjusting your filters or search terms</p>
+              <PackageX className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-lg font-medium">No items found</p>
+              <p className="text-muted-foreground mb-4">There are no found items matching your criteria</p>
+              <Button asChild>
+                <a href="/report?type=found">Report a Found Item</a>
+              </Button>
             </div>
           )}
         </div>

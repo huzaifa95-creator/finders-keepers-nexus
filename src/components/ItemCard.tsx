@@ -32,9 +32,13 @@ const ItemCard: React.FC<ItemProps> = ({
       <div className="relative">
         <div className="h-48 overflow-hidden">
           <img 
-            src={image} 
+            src={image || '/placeholder.svg'} 
             alt={title} 
             className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = '/placeholder.svg';
+            }}
           />
         </div>
         

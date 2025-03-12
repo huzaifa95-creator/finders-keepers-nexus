@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ItemCard from "@/components/ItemCard";
@@ -12,81 +12,75 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Search, Filter, SlidersHorizontal } from "lucide-react";
+import { Search, Filter, SlidersHorizontal, PackageX } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data for display
-const mockLostItems = [
-  {
-    id: "1",
-    title: "MacBook Pro 16-inch",
-    category: "Electronics",
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1626&q=80",
-    location: "University Library, 2nd Floor",
-    date: "Oct 12, 2023",
-    status: "lost" as const,
-    isHighValue: true
-  },
-  {
-    id: "2",
-    title: "Blue Hydro Flask",
-    category: "Personal Items",
-    image: "https://images.unsplash.com/photo-1610024062303-e355e94c7a8c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1548&q=80",
-    location: "Engineering Building, Room 101",
-    date: "Oct 15, 2023",
-    status: "lost" as const
-  },
-  {
-    id: "3",
-    title: "Student ID Card",
-    category: "Documents",
-    image: "https://images.unsplash.com/photo-1578674473215-9e8ae3c890f5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1548&q=80",
-    location: "Student Center Cafeteria",
-    date: "Oct 18, 2023",
-    status: "lost" as const
-  },
-  {
-    id: "4",
-    title: "Black Leather Wallet",
-    category: "Personal Items",
-    image: "https://images.unsplash.com/photo-1627123424574-724758594e93?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1472&q=80",
-    location: "Campus Shuttle Bus",
-    date: "Oct 20, 2023",
-    status: "lost" as const,
-    isHighValue: true
-  },
-  {
-    id: "5",
-    title: "Calculus Textbook",
-    category: "Books & Supplies",
-    image: "https://images.unsplash.com/photo-1576872381149-7847515ce5d8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1548&q=80",
-    location: "Mathematics Department, Study Room",
-    date: "Oct 21, 2023",
-    status: "lost" as const
-  },
-  {
-    id: "6",
-    title: "Apple AirPods Pro",
-    category: "Electronics",
-    image: "https://images.unsplash.com/photo-1588423771073-b8903fbb85b5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1548&q=80",
-    location: "Gymnasium, Locker Room",
-    date: "Oct 22, 2023",
-    status: "lost" as const,
-    isHighValue: true
-  }
-];
+interface Item {
+  _id: string;
+  title: string;
+  category: string;
+  image: string;
+  location: string;
+  createdAt: string;
+  status: 'lost' | 'found';
+  isHighValue: boolean;
+}
 
 const LostItems = () => {
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [category, setCategory] = useState("all");
+  const { toast } = useToast();
   
-  // Filter logic would go here in a real app
-  const filteredItems = mockLostItems.filter(item => 
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost:5000/api/items/lost');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch lost items');
+        }
+        
+        const data = await response.json();
+        setItems(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching lost items:', err);
+        setError('Failed to load items. Please try again later.');
+        toast({
+          title: "Error",
+          description: "Failed to load lost items. Please try again later.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchItems();
+  }, [toast]);
+  
+  // Filter logic
+  const filteredItems = items.filter(item => 
     item.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (category === "all" || item.category === category)
   );
   
-  const categories = ["all", ...new Set(mockLostItems.map(item => item.category))];
+  const categories = ["all", ...Array.from(new Set(items.map(item => item.category)))];
+
+  // Format the date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -189,7 +183,9 @@ const LostItems = () => {
         {/* Results */}
         <div>
           <div className="flex justify-between items-center mb-4">
-            <p className="text-muted-foreground">Showing {filteredItems.length} results</p>
+            <p className="text-muted-foreground">
+              {loading ? 'Loading items...' : `Showing ${filteredItems.length} results`}
+            </p>
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
               <Select defaultValue="newest">
@@ -205,16 +201,59 @@ const LostItems = () => {
             </div>
           </div>
           
-          {filteredItems.length > 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((_, index) => (
+                <Card key={index} className="h-[350px] animate-pulse">
+                  <div className="h-48 bg-muted"></div>
+                  <CardHeader className="p-4">
+                    <div className="h-5 w-2/3 bg-muted rounded"></div>
+                    <div className="h-4 w-1/3 bg-muted rounded mt-2"></div>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <div className="h-4 w-full bg-muted rounded"></div>
+                      <div className="h-4 w-2/3 bg-muted rounded"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-12 border border-dashed border-border rounded-lg">
+              <p className="text-lg font-medium text-destructive">{error}</p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                variant="outline" 
+                className="mt-4"
+              >
+                Try Again
+              </Button>
+            </div>
+          ) : filteredItems.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredItems.map((item) => (
-                <ItemCard key={item.id} {...item} />
+                <ItemCard 
+                  key={item._id}
+                  id={item._id}
+                  title={item.title}
+                  category={item.category}
+                  image={`http://localhost:5000/${item.image}`}
+                  location={item.location}
+                  date={formatDate(item.createdAt)}
+                  status="lost"
+                  isHighValue={item.isHighValue}
+                />
               ))}
             </div>
           ) : (
             <div className="text-center py-12 border border-dashed border-border rounded-lg">
-              <p className="text-lg font-medium">No items match your search criteria</p>
-              <p className="text-muted-foreground">Try adjusting your filters or search terms</p>
+              <PackageX className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-lg font-medium">No items found</p>
+              <p className="text-muted-foreground mb-4">There are no lost items matching your criteria</p>
+              <Button asChild>
+                <a href="/report?type=lost">Report a Lost Item</a>
+              </Button>
             </div>
           )}
         </div>

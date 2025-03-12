@@ -125,9 +125,6 @@ const Navigation = () => {
                   <DropdownMenuItem onClick={() => navigate('/profile')}>
                     My Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/my-items')}>
-                    My Items
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-red-500">
                     <LogOut className="mr-2 h-4 w-4" />

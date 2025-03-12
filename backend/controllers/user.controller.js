@@ -3,336 +3,191 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const bcrypt = require('bcryptjs');
 const { validationResult } = require('express-validator');
-const fs = require('fs');
-const path = require('path');
 
-// @desc    Get all users
-// @route   GET /api/users
-// @access  Private (Admin only)
-exports.getAllUsers = async (req, res) => {
-  try {
-    const { 
-      role, 
-      search, 
-      sortBy = 'createdAt', 
-      sortOrder = -1,
-      page = 1,
-      limit = 10
-    } = req.query;
-
-    // Build filter object
-    const filter = {};
-    if (role) filter.role = role;
-
-    // Text search
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { studentId: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    // Pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    
-    // Sorting
-    const sort = {};
-    sort[sortBy] = parseInt(sortOrder);
-
-    const users = await User.find(filter)
-      .select('-password') // Don't return passwords
-      .sort(sort)
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    // Get total count for pagination
-    const total = await User.countDocuments(filter);
-
-    res.json({
-      success: true,
-      count: users.length,
-      total,
-      totalPages: Math.ceil(total / parseInt(limit)),
-      currentPage: parseInt(page),
-      users
-    });
-  } catch (err) {
-    console.error('Get all users error:', err.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
-  }
-};
-
-// @desc    Get user by ID
-// @route   GET /api/users/:id
-// @access  Private (Admin only)
-exports.getUserById = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select('-password');
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
-      });
-    }
-
-    res.json({
-      success: true,
-      user
-    });
-  } catch (err) {
-    console.error('Get user by ID error:', err.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
-  }
-};
-
-// @desc    Update user (admin)
-// @route   PUT /api/users/:id
-// @access  Private (Admin only)
-exports.updateUser = async (req, res) => {
-  try {
-    const { name, email, role, department, studentId } = req.body;
-
-    // Build update object
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (email) updateData.email = email;
-    if (role) updateData.role = role;
-    if (department) updateData.department = department;
-    if (studentId) updateData.studentId = studentId;
-
-    // Update user
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $set: updateData },
-      { new: true }
-    ).select('-password');
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
-      });
-    }
-
-    res.json({
-      success: true,
-      user
-    });
-  } catch (err) {
-    console.error('Update user error:', err.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
-  }
-};
-
-// @desc    Delete user
-// @route   DELETE /api/users/:id
-// @access  Private (Admin only)
-exports.deleteUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
-      });
-    }
-
-    // Remove profile picture if exists
-    if (user.profilePicture) {
-      try {
-        const filePath = path.join(__dirname, '..', user.profilePicture);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      } catch (error) {
-        console.error('Error deleting profile picture:', error);
-      }
-    }
-
-    // Delete user's notifications
-    await Notification.deleteMany({ userId: user._id });
-
-    // Delete the user
-    await user.remove();
-
-    res.json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (err) {
-    console.error('Delete user error:', err.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
-  }
-};
-
-// @desc    Get user notifications
-// @route   GET /api/users/notifications
-// @access  Private
+// Get user notifications
 exports.getUserNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ userId: req.user._id })
+    const notifications = await Notification.find({ user: req.user.id })
       .sort({ createdAt: -1 })
-      .populate('itemId', 'title status');
-
-    res.json({
-      success: true,
-      count: notifications.length,
-      notifications
-    });
-  } catch (err) {
-    console.error('Get notifications error:', err.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+      .populate('relatedItem')
+      .populate('relatedPost');
+      
+    res.json(notifications);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// @desc    Mark notification as read
-// @route   PUT /api/users/notifications/:id
-// @access  Private
+// Mark notification as read
 exports.markNotificationRead = async (req, res) => {
   try {
-    const notification = await Notification.findById(req.params.id);
-
+    let notification = await Notification.findById(req.params.id);
+    
     if (!notification) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Notification not found' 
-      });
+      return res.status(404).json({ message: 'Notification not found' });
     }
-
-    // Ensure user owns the notification
-    if (notification.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Not authorized to update this notification' 
-      });
+    
+    // Check if notification belongs to user
+    if (notification.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized' });
     }
-
-    notification.isRead = true;
+    
+    notification.read = true;
     await notification.save();
-
-    res.json({
-      success: true,
-      notification
-    });
-  } catch (err) {
-    console.error('Mark notification read error:', err.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    
+    res.json(notification);
+  } catch (error) {
+    console.error(error);
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// @desc    Update user profile
-// @route   PUT /api/users/profile
-// @access  Private
+// Update user profile
 exports.updateProfile = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
+    return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    const { name, studentId, department } = req.body;
-
-    // Build update object
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (studentId) updateData.studentId = studentId;
-    if (department) updateData.department = department;
-
-    // Handle profile picture upload
-    if (req.file) {
-      // Remove old profile picture if exists
-      if (req.user.profilePicture) {
-        try {
-          const filePath = path.join(__dirname, '..', req.user.profilePicture);
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-          }
-        } catch (error) {
-          console.error('Error deleting old profile picture:', error);
-        }
+    const { name, email } = req.body;
+    
+    // Check if email is already in use
+    if (email && email !== req.user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Email already in use' });
       }
-
-      updateData.profilePicture = `/uploads/${req.file.filename}`;
     }
-
-    // Update user
+    
+    const updatedFields = {};
+    if (name) updatedFields.name = name;
+    if (email) updatedFields.email = email;
+    
     const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { $set: updateData },
+      req.user.id,
+      { $set: updatedFields },
       { new: true }
     ).select('-password');
-
-    res.json({
-      success: true,
-      user
-    });
-  } catch (err) {
-    console.error('Update profile error:', err.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// @desc    Change password
-// @route   PUT /api/users/password
-// @access  Private
+// Change password
 exports.changePassword = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
+    return res.status(400).json({ errors: errors.array() });
   }
 
   try {
     const { currentPassword, newPassword } = req.body;
-
+    
     // Get user with password
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.id);
     
     // Check current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Current password is incorrect' 
-      });
+      return res.status(400).json({ message: 'Current password is incorrect' });
     }
-
+    
     // Update password
     user.password = newPassword;
     await user.save();
+    
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
-    res.json({
-      success: true,
-      message: 'Password updated successfully'
-    });
-  } catch (err) {
-    console.error('Change password error:', err.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+// Admin only: Get all users
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin only: Get user by ID
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin only: Update user
+exports.updateUser = async (req, res) => {
+  try {
+    const { name, email, role } = req.body;
+    
+    const updatedFields = {};
+    if (name) updatedFields.name = name;
+    if (email) updatedFields.email = email;
+    if (role) updatedFields.role = role;
+    
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: updatedFields },
+      { new: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin only: Delete user
+exports.deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    await user.remove();
+    
+    res.json({ message: 'User removed' });
+  } catch (error) {
+    console.error(error);
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
   }
 };

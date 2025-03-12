@@ -1,71 +1,76 @@
 
 const express = require('express');
 const router = express.Router();
-const { body } = require('express-validator');
+const { check } = require('express-validator');
 const itemsController = require('../controllers/items.controller');
-const { authenticate, isAdmin } = require('../middleware/auth');
+const { auth, admin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
-// Get all items with filters
+// @route   GET /api/items
+// @desc    Get all items with filtering
+// @access  Public
 router.get('/', itemsController.getItems);
 
-// Get a single item by ID
+// @route   GET /api/items/:id
+// @desc    Get a single item by ID
+// @access  Public
 router.get('/:id', itemsController.getItemById);
 
-// Create a new item - protected route
+// @route   POST /api/items
+// @desc    Create a new item
+// @access  Private
 router.post(
   '/',
-  authenticate,
-  upload.array('images', 5),
   [
-    body('title', 'Title is required').notEmpty().trim(),
-    body('description', 'Description is required').notEmpty().trim(),
-    body('category', 'Category is required').notEmpty().trim(),
-    body('location', 'Location is required').notEmpty().trim(),
-    body('itemType', 'Item type must be either lost or found').isIn(['lost', 'found'])
+    auth,
+    upload.single('image'),
+    [
+      check('title', 'Title is required').not().isEmpty(),
+      check('description', 'Description is required').not().isEmpty(),
+      check('type', 'Type is required').isIn(['lost', 'found']),
+      check('category', 'Category is required').not().isEmpty(),
+      check('location', 'Location is required').not().isEmpty(),
+      check('date', 'Date is required').not().isEmpty()
+    ]
   ],
   itemsController.createItem
 );
 
-// Update an item - protected route
+// @route   PUT /api/items/:id
+// @desc    Update an item
+// @access  Private
 router.put(
   '/:id',
-  authenticate,
-  upload.array('images', 5),
+  [
+    auth,
+    upload.single('image')
+  ],
   itemsController.updateItem
 );
 
-// Delete an item - protected route
-router.delete(
-  '/:id',
-  authenticate,
-  itemsController.deleteItem
-);
+// @route   DELETE /api/items/:id
+// @desc    Delete an item
+// @access  Private
+router.delete('/:id', auth, itemsController.deleteItem);
 
-// Claim an item - protected route
-router.post(
-  '/:id/claim',
-  authenticate,
-  itemsController.claimItem
-);
+// @route   POST /api/items/:id/claim
+// @desc    Claim an item
+// @access  Private
+router.post('/:id/claim', auth, itemsController.claimItem);
 
-// Admin approve/reject item claim - admin route
+// @route   POST /api/items/:id/review
+// @desc    Admin approve/reject item claim
+// @access  Private (Admin only)
 router.post(
   '/:id/review',
-  authenticate,
-  isAdmin,
   [
-    body('status', 'Status must be either approved, rejected or pending').isIn(['approved', 'rejected', 'pending'])
+    auth,
+    admin,
+    [
+      check('status', 'Status must be either resolved or rejected').isIn(['resolved', 'rejected'])
+    ]
   ],
-  itemsController.reviewItem
-);
-
-// Admin mark item as resolved - admin route
-router.post(
-  '/:id/resolve',
-  authenticate,
-  isAdmin,
-  itemsController.resolveItem
+  itemsController.reviewItemClaim
 );
 
 module.exports = router;

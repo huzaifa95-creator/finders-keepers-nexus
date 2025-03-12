@@ -1,34 +1,38 @@
 
 const express = require('express');
 const router = express.Router();
-const { body } = require('express-validator');
+const { check } = require('express-validator');
 const authController = require('../controllers/auth.controller');
+const { auth } = require('../middleware/auth');
 
-// Register a new user
+// @route   POST /api/auth/register
+// @desc    Register a user
+// @access  Public
 router.post(
   '/register',
   [
-    body('name', 'Name is required').notEmpty().trim(),
-    body('email', 'Please include a valid FAST-NUCES email')
-      .isEmail()
-      .matches(/^[\w-]+(\.[\w-]+)*@nu\.edu\.pk$/)
-      .normalizeEmail(),
-    body('password', 'Password must be at least 6 characters').isLength({ min: 6 })
+    check('name', 'Name is required').not().isEmpty(),
+    check('email', 'Please include a valid email').isEmail(),
+    check('password', 'Password must be at least 6 characters').isLength({ min: 6 })
   ],
   authController.register
 );
 
-// Login user
+// @route   POST /api/auth/login
+// @desc    Authenticate user & get token
+// @access  Public
 router.post(
   '/login',
   [
-    body('email', 'Please include a valid email').isEmail().normalizeEmail(),
-    body('password', 'Password is required').notEmpty()
+    check('email', 'Please include a valid email').isEmail(),
+    check('password', 'Password is required').exists()
   ],
   authController.login
 );
 
-// Get current user profile
-router.get('/me', authController.getCurrentUser);
+// @route   GET /api/auth/me
+// @desc    Get current user
+// @access  Private
+router.get('/me', auth, authController.getCurrentUser);
 
 module.exports = router;

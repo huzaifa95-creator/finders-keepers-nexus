@@ -1,8 +1,9 @@
 
+import React from 'react';
 import { CheckCircle, Clock, X, HelpCircle, User, Package } from 'lucide-react';
 
 // Define the status types
-export type ItemStatus = 'pending' | 'claimed' | 'resolved' | 'rejected' | 'lost' | 'found';
+export type ItemStatus = 'pending' | 'claimed' | 'resolved' | 'rejected' | 'lost' | 'found' | 'approved';
 
 // Get appropriate icon for each status
 export const getStatusIcon = (status: ItemStatus) => {
@@ -19,6 +20,8 @@ export const getStatusIcon = (status: ItemStatus) => {
       return <HelpCircle className="h-4 w-4 text-destructive" />;
     case 'found':
       return <Package className="h-4 w-4 text-green-500" />;
+    case 'approved':
+      return <CheckCircle className="h-4 w-4 text-blue-500" />;
     default:
       return <Clock className="h-4 w-4 text-muted-foreground" />;
   }
@@ -39,6 +42,8 @@ export const getStatusText = (status: ItemStatus) => {
       return 'Lost';
     case 'found':
       return 'Found';
+    case 'approved':
+      return 'Approved';
     default:
       return 'Unknown';
   }
@@ -59,6 +64,8 @@ export const getStatusColor = (status: ItemStatus) => {
       return 'bg-destructive text-destructive-foreground';
     case 'found':
       return 'bg-green-500 text-white';
+    case 'approved':
+      return 'bg-blue-500 text-white';
     default:
       return 'bg-muted text-muted-foreground';
   }

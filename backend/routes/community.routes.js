@@ -1,83 +1,87 @@
 
 const express = require('express');
 const router = express.Router();
-const { body } = require('express-validator');
+const { check } = require('express-validator');
 const communityController = require('../controllers/community.controller');
-const { authenticate, isAdmin } = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
-// Get all posts with filters
+// @route   GET /api/community
+// @desc    Get all posts with filtering
+// @access  Public
 router.get('/', communityController.getPosts);
 
-// Get a single post by ID
+// @route   GET /api/community/:id
+// @desc    Get a single post by ID
+// @access  Public
 router.get('/:id', communityController.getPostById);
 
-// Create a new post - protected route
+// @route   POST /api/community
+// @desc    Create a new post
+// @access  Private
 router.post(
   '/',
-  authenticate,
   [
-    body('title', 'Title is required').notEmpty().trim(),
-    body('content', 'Content is required').notEmpty().trim(),
-    body('category', 'Category is required').notEmpty().trim()
+    auth,
+    [
+      check('title', 'Title is required').not().isEmpty(),
+      check('content', 'Content is required').not().isEmpty()
+    ]
   ],
   communityController.createPost
 );
 
-// Update a post - protected route (only author or admin)
+// @route   PUT /api/community/:id
+// @desc    Update a post
+// @access  Private
 router.put(
   '/:id',
-  authenticate,
   [
-    body('title', 'Title is required').optional().notEmpty().trim(),
-    body('content', 'Content is required').optional().notEmpty().trim(),
-    body('category', 'Category is required').optional().notEmpty().trim()
+    auth,
+    [
+      check('title', 'Title is required').optional().not().isEmpty(),
+      check('content', 'Content is required').optional().not().isEmpty()
+    ]
   ],
   communityController.updatePost
 );
 
-// Delete a post - protected route (only author or admin)
-router.delete(
-  '/:id',
-  authenticate,
-  communityController.deletePost
-);
+// @route   DELETE /api/community/:id
+// @desc    Delete a post
+// @access  Private
+router.delete('/:id', auth, communityController.deletePost);
 
-// Like a post - protected route
-router.post(
-  '/:id/like',
-  authenticate,
-  communityController.likePost
-);
+// @route   POST /api/community/:id/like
+// @desc    Like a post
+// @access  Private
+router.post('/:id/like', auth, communityController.likePost);
 
-// Unlike a post - protected route
-router.delete(
-  '/:id/like',
-  authenticate,
-  communityController.unlikePost
-);
+// @route   DELETE /api/community/:id/like
+// @desc    Unlike a post
+// @access  Private
+router.delete('/:id/like', auth, communityController.unlikePost);
 
-// Add a comment to a post - protected route
+// @route   POST /api/community/:id/comments
+// @desc    Add a comment to a post
+// @access  Private
 router.post(
   '/:id/comments',
-  authenticate,
   [
-    body('content', 'Comment content is required').notEmpty().trim()
+    auth,
+    [
+      check('text', 'Text is required').not().isEmpty()
+    ]
   ],
   communityController.addComment
 );
 
-// Delete a comment - protected route (only comment author or admin)
-router.delete(
-  '/:id/comments/:commentId',
-  authenticate,
-  communityController.deleteComment
-);
+// @route   DELETE /api/community/:id/comments/:commentId
+// @desc    Delete a comment
+// @access  Private
+router.delete('/:id/comments/:commentId', auth, communityController.deleteComment);
 
-// Mark post as resolved - protected route (only author or admin)
-router.put(
-  '/:id/resolve',
-  authenticate,
-  communityController.resolvePost
-);
+// @route   PUT /api/community/:id/resolve
+// @desc    Mark post as resolved
+// @access  Private
+router.put('/:id/resolve', auth, communityController.markResolved);
 
 module.exports = router;

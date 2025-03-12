@@ -2,15 +2,14 @@
 const mongoose = require('mongoose');
 
 const commentSchema = new mongoose.Schema({
+  text: {
+    type: String,
+    required: true
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  },
-  content: {
-    type: String,
-    required: true,
-    trim: true
   },
   createdAt: {
     type: Date,
@@ -26,44 +25,26 @@ const postSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true,
-    trim: true
+    required: true
   },
-  author: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  category: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  location: {
-    type: String,
-    trim: true
-  },
-  isResolved: {
-    type: Boolean,
-    default: false
-  },
-  comments: [commentSchema],
   likes: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  comments: [commentSchema],
+  resolved: {
+    type: Boolean,
+    default: false
+  },
   createdAt: {
     type: Date,
     default: Date.now
-  },
-  relatedItem: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Item'
   }
 });
 
-// Add text index for search functionality
-postSchema.index({ title: 'text', content: 'text', category: 'text', location: 'text' });
-
-const Post = mongoose.model('Post', postSchema);
-module.exports = Post;
+module.exports = mongoose.model('Post', postSchema);

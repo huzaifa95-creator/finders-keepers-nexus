@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from '@/context/AuthContext';
 import NotificationCenter from './NotificationCenter';
+import { ThemeToggle } from './ThemeToggle';
 
 const Navigation = () => {
   const location = useLocation();
@@ -94,6 +95,8 @@ const Navigation = () => {
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>
           </Button>
+          
+          <ThemeToggle />
           
           {isAuthenticated && (
             <NotificationCenter />

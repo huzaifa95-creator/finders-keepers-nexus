@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
@@ -25,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
+import UserManagement from '@/components/admin/UserManagement';
 
 // Mock data for claims
 const mockClaims = [
@@ -441,19 +441,7 @@ const Admin = () => {
           
           {/* User Management Tab */}
           <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>
-                  Manage staff and student accounts for the Lost & Found system
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-center text-muted-foreground py-8">
-                  User management functionality coming soon!
-                </p>
-              </CardContent>
-            </Card>
+            <UserManagement />
           </TabsContent>
         </Tabs>
       </main>

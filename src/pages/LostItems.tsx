@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Search, Filter, SlidersHorizontal, PackageX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 interface Item {
   _id: string;

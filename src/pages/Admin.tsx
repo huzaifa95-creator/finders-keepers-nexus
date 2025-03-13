@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
@@ -26,87 +27,56 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import UserManagement from '@/components/admin/UserManagement';
 
-// Mock data for claims
-const mockClaims = [
-  {
-    id: "claim1",
-    itemId: "1",
-    itemName: "MacBook Pro 16-inch",
-    claimantName: "Ali Hassan",
-    claimantEmail: "k224567@nu.edu.pk",
-    dateSubmitted: "Oct 30, 2023",
-    status: "pending",
-    description: "I can identify the MacBook by the crack on the bottom right corner and the Star Wars sticker on the lid. Lost it in the library on Oct 12."
-  },
-  {
-    id: "claim2",
-    itemId: "2",
-    itemName: "Silver iPhone 13",
-    claimantName: "Fatima Khan",
-    claimantEmail: "k225678@nu.edu.pk",
-    dateSubmitted: "Oct 29, 2023",
-    status: "approved",
-    description: "My phone has a photo of me and my family as wallpaper and has a small crack in the top right corner of the case."
-  },
-  {
-    id: "claim3",
-    itemId: "3",
-    itemName: "Student ID Card",
-    claimantName: "Usman Ali",
-    claimantEmail: "k226789@nu.edu.pk",
-    dateSubmitted: "Oct 28, 2023",
-    status: "rejected",
-    description: "The ID card has my photo and ID number K226789 on it."
-  }
-];
+interface Claim {
+  id: string;
+  itemId: string;
+  itemName: string;
+  claimantName: string;
+  claimantEmail: string;
+  dateSubmitted: string;
+  status: string;
+  description: string;
+}
 
-// Mock data for items that need attention
-const highValueItems = [
-  {
-    id: "1",
-    title: "MacBook Pro 16-inch",
-    location: "University Library, 2nd Floor",
-    date: "Oct 12, 2023",
-    status: "lost",
-    isHighValue: true
-  },
-  {
-    id: "4",
-    title: "Black Leather Wallet",
-    location: "Campus Shuttle Bus",
-    date: "Oct 20, 2023",
-    status: "lost",
-    isHighValue: true
-  },
-  {
-    id: "6",
-    title: "Apple AirPods Pro",
-    location: "Gymnasium, Locker Room",
-    date: "Oct 22, 2023",
-    status: "lost",
-    isHighValue: true
-  }
-];
+interface HighValueItem {
+  id: string;
+  title: string;
+  location: string;
+  date: string;
+  status: 'lost' | 'found';
+  isHighValue: boolean;
+}
 
-// Mock stats data
-const statsData = {
-  totalItems: 24,
-  lostItems: 14,
-  foundItems: 10,
-  resolvedItems: 8,
-  highValueItems: 5,
-  claimsPending: 3,
-  claimsResolved: 5
-};
+interface StatsData {
+  totalItems: number;
+  lostItems: number;
+  foundItems: number;
+  resolvedItems: number;
+  highValueItems: number;
+  claimsPending: number;
+  claimsResolved: number;
+}
 
 const Admin = () => {
   const { isAuthenticated, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [processingClaimId, setProcessingClaimId] = useState<string | null>(null);
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [highValueItems, setHighValueItems] = useState<HighValueItem[]>([]);
+  const [statsData, setStatsData] = useState<StatsData>({
+    totalItems: 0,
+    lostItems: 0,
+    foundItems: 0,
+    resolvedItems: 0,
+    highValueItems: 0,
+    claimsPending: 0,
+    claimsResolved: 0
+  });
+  const [loading, setLoading] = useState(true);
 
   // If not authenticated or not an admin, redirect to login
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
@@ -122,21 +92,86 @@ const Admin = () => {
     }
   }, [isAuthenticated, isAdmin, navigate, toast]);
 
+  // Fetch admin data
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      if (!isAuthenticated || !isAdmin) return;
+
+      setLoading(true);
+      
+      try {
+        // Fetch claims
+        const claimsResponse = await fetch('http://localhost:5000/api/admin/claims');
+        if (claimsResponse.ok) {
+          const claimsData = await claimsResponse.json();
+          setClaims(claimsData);
+        }
+
+        // Fetch high value items
+        const highValueResponse = await fetch('http://localhost:5000/api/admin/high-value-items');
+        if (highValueResponse.ok) {
+          const highValueData = await highValueResponse.json();
+          setHighValueItems(highValueData);
+        }
+
+        // Fetch stats
+        const statsResponse = await fetch('http://localhost:5000/api/admin/stats');
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setStatsData(statsData);
+        }
+      } catch (error) {
+        console.error('Error fetching admin data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load admin data. Please try again later.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdminData();
+  }, [isAuthenticated, isAdmin, toast]);
+
   const handleViewItem = (itemId: string) => {
     navigate(`/items/${itemId}`);
   };
 
-  const handleProcessClaim = (claimId: string, action: 'approve' | 'reject') => {
+  const handleProcessClaim = async (claimId: string, action: 'approve' | 'reject') => {
     setProcessingClaimId(claimId);
     
-    // Simulate processing
-    setTimeout(() => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/claims/${claimId}/${action}`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to ${action} claim`);
+      }
+      
       toast({
         title: action === 'approve' ? "Claim Approved" : "Claim Rejected",
         description: `The claim has been ${action === 'approve' ? 'approved' : 'rejected'} successfully.`,
       });
+      
+      // Update claims list
+      setClaims(claims.map(claim => 
+        claim.id === claimId 
+          ? { ...claim, status: action === 'approve' ? 'approved' : 'rejected' } 
+          : claim
+      ));
+    } catch (err) {
+      console.error(`Error ${action}ing claim:`, err);
+      toast({
+        title: "Error",
+        description: `Failed to ${action} the claim. Please try again.`,
+        variant: "destructive",
+      });
+    } finally {
       setProcessingClaimId(null);
-    }, 1500);
+    }
   };
 
   if (!isAuthenticated || !isAdmin) {
@@ -147,6 +182,21 @@ const Admin = () => {
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
             <p>Redirecting...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navigation />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p>Loading admin data...</p>
           </div>
         </main>
         <Footer />
@@ -240,82 +290,88 @@ const Admin = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mockClaims.map((claim) => (
-                    <div 
-                      key={claim.id}
-                      className="p-4 border border-border rounded-lg bg-card/50 hover:bg-card/80 transition-colors"
-                    >
-                      <div className="flex flex-col md:flex-row justify-between mb-2">
-                        <div>
-                          <h3 className="text-lg font-medium">{claim.itemName}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Claimed by: {claim.claimantName} ({claim.claimantEmail})
-                          </p>
+                {claims.length > 0 ? (
+                  <div className="space-y-4">
+                    {claims.map((claim) => (
+                      <div 
+                        key={claim.id}
+                        className="p-4 border border-border rounded-lg bg-card/50 hover:bg-card/80 transition-colors"
+                      >
+                        <div className="flex flex-col md:flex-row justify-between mb-2">
+                          <div>
+                            <h3 className="text-lg font-medium">{claim.itemName}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Claimed by: {claim.claimantName} ({claim.claimantEmail})
+                            </p>
+                          </div>
+                          <div className="md:text-right mt-2 md:mt-0">
+                            <p className="text-sm text-muted-foreground">
+                              Submitted: {claim.dateSubmitted}
+                            </p>
+                            <Badge 
+                              className={`
+                                ${claim.status === 'pending' ? 'bg-amber-500 text-white' : ''}
+                                ${claim.status === 'approved' ? 'bg-green-500 text-white' : ''}
+                                ${claim.status === 'rejected' ? 'bg-destructive text-destructive-foreground' : ''}
+                                uppercase
+                              `}
+                            >
+                              {claim.status}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="md:text-right mt-2 md:mt-0">
-                          <p className="text-sm text-muted-foreground">
-                            Submitted: {claim.dateSubmitted}
-                          </p>
-                          <Badge 
-                            className={`
-                              ${claim.status === 'pending' ? 'bg-amber-500 text-white' : ''}
-                              ${claim.status === 'approved' ? 'bg-green-500 text-white' : ''}
-                              ${claim.status === 'rejected' ? 'bg-destructive text-destructive-foreground' : ''}
-                              uppercase
-                            `}
-                          >
-                            {claim.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <p className="text-sm text-muted-foreground mb-4">
-                        <strong>Claim Details:</strong> {claim.description}
-                      </p>
-                      
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleViewItem(claim.itemId)}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Item
-                        </Button>
                         
-                        {claim.status === 'pending' && (
-                          <>
-                            <Button 
-                              size="sm" 
-                              variant="default" 
-                              className="bg-green-500 hover:bg-green-600 text-white"
-                              disabled={processingClaimId === claim.id}
-                              onClick={() => handleProcessClaim(claim.id, 'approve')}
-                            >
-                              {processingClaimId === claim.id ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                              )}
-                              Approve
-                            </Button>
-                            
-                            <Button 
-                              size="sm" 
-                              variant="destructive"
-                              disabled={processingClaimId === claim.id}
-                              onClick={() => handleProcessClaim(claim.id, 'reject')}
-                            >
-                              {processingClaimId === claim.id ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <XCircle className="h-4 w-4 mr-2" />
-                              )}
-                              Reject
-                            </Button>
-                          </>
-                        )}
+                        <p className="text-sm text-muted-foreground mb-4">
+                          <strong>Claim Details:</strong> {claim.description}
+                        </p>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleViewItem(claim.itemId)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Item
+                          </Button>
+                          
+                          {claim.status === 'pending' && (
+                            <>
+                              <Button 
+                                size="sm" 
+                                variant="default" 
+                                className="bg-green-500 hover:bg-green-600 text-white"
+                                disabled={processingClaimId === claim.id}
+                                onClick={() => handleProcessClaim(claim.id, 'approve')}
+                              >
+                                {processingClaimId === claim.id ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                )}
+                                Approve
+                              </Button>
+                              
+                              <Button 
+                                size="sm" 
+                                variant="destructive"
+                                disabled={processingClaimId === claim.id}
+                                onClick={() => handleProcessClaim(claim.id, 'reject')}
+                              >
+                                {processingClaimId === claim.id ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                )}
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No pending claims to review</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -330,37 +386,43 @@ const Admin = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {highValueItems.map((item) => (
-                    <div 
-                      key={item.id} 
-                      className="p-4 border border-border rounded-lg bg-card/50 hover:bg-card/80 transition-colors"
-                    >
-                      <div className="flex justify-between mb-2">
-                        <h3 className="text-lg font-medium">{item.title}</h3>
-                        <Badge 
-                          className={`${item.status === 'lost' ? 'bg-destructive text-destructive-foreground' : 'bg-green-500 text-white'} uppercase`}
-                        >
-                          {item.status}
-                        </Badge>
+                {highValueItems.length > 0 ? (
+                  <div className="space-y-4">
+                    {highValueItems.map((item) => (
+                      <div 
+                        key={item.id} 
+                        className="p-4 border border-border rounded-lg bg-card/50 hover:bg-card/80 transition-colors"
+                      >
+                        <div className="flex justify-between mb-2">
+                          <h3 className="text-lg font-medium">{item.title}</h3>
+                          <Badge 
+                            className={`${item.status === 'lost' ? 'bg-destructive text-destructive-foreground' : 'bg-green-500 text-white'} uppercase`}
+                          >
+                            {item.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4">
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-medium">Location:</span> {item.location}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-medium">Date:</span> {item.date}
+                          </p>
+                        </div>
+                        
+                        <Button size="sm" onClick={() => handleViewItem(item.id)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </Button>
                       </div>
-                      
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4">
-                        <p className="text-sm text-muted-foreground">
-                          <span className="font-medium">Location:</span> {item.location}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          <span className="font-medium">Date:</span> {item.date}
-                        </p>
-                      </div>
-                      
-                      <Button size="sm" onClick={() => handleViewItem(item.id)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Details
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No high value items to display</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -385,7 +447,7 @@ const Admin = () => {
                             <p className="text-sm font-medium">Lost Items</p>
                             <p className="text-sm font-medium">{statsData.lostItems} / {statsData.totalItems}</p>
                           </div>
-                          <Progress value={(statsData.lostItems / statsData.totalItems) * 100} className="h-2 bg-primary/20" />
+                          <Progress value={(statsData.lostItems / statsData.totalItems) * 100 || 0} className="h-2 bg-primary/20" />
                         </div>
                         
                         <div>
@@ -393,7 +455,7 @@ const Admin = () => {
                             <p className="text-sm font-medium">Found Items</p>
                             <p className="text-sm font-medium">{statsData.foundItems} / {statsData.totalItems}</p>
                           </div>
-                          <Progress value={(statsData.foundItems / statsData.totalItems) * 100} className="h-2 bg-primary/20" />
+                          <Progress value={(statsData.foundItems / statsData.totalItems) * 100 || 0} className="h-2 bg-primary/20" />
                         </div>
                         
                         <div>
@@ -401,7 +463,7 @@ const Admin = () => {
                             <p className="text-sm font-medium">Resolved Items</p>
                             <p className="text-sm font-medium">{statsData.resolvedItems} / {statsData.totalItems}</p>
                           </div>
-                          <Progress value={(statsData.resolvedItems / statsData.totalItems) * 100} className="h-2 bg-primary/20" />
+                          <Progress value={(statsData.resolvedItems / statsData.totalItems) * 100 || 0} className="h-2 bg-primary/20" />
                         </div>
                       </div>
                       
@@ -409,7 +471,9 @@ const Admin = () => {
                         <div className="p-4 border border-border rounded-lg bg-card/50">
                           <h4 className="text-sm font-medium mb-2">Claim Resolution Rate</h4>
                           <p className="text-3xl font-bold">
-                            {Math.round((statsData.claimsResolved / (statsData.claimsResolved + statsData.claimsPending)) * 100)}%
+                            {statsData.claimsResolved + statsData.claimsPending > 0 
+                              ? Math.round((statsData.claimsResolved / (statsData.claimsResolved + statsData.claimsPending)) * 100)
+                              : 0}%
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {statsData.claimsResolved} out of {statsData.claimsResolved + statsData.claimsPending} claims resolved
@@ -419,7 +483,9 @@ const Admin = () => {
                         <div className="p-4 border border-border rounded-lg bg-card/50">
                           <h4 className="text-sm font-medium mb-2">Item Recovery Rate</h4>
                           <p className="text-3xl font-bold">
-                            {Math.round((statsData.resolvedItems / statsData.totalItems) * 100)}%
+                            {statsData.totalItems > 0 
+                              ? Math.round((statsData.resolvedItems / statsData.totalItems) * 100)
+                              : 0}%
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {statsData.resolvedItems} out of {statsData.totalItems} items recovered

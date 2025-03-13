@@ -17,11 +17,9 @@ A web application for managing lost and found items at FAST-NUCES.
    npm install
    ```
 
-3. Create a .env file in the backend directory with:
+3. The MongoDB connection string is already set up in the server-simple.js file. It's using:
    ```
-   PORT=5000
-   NODE_ENV=development
-   MONGODB_URI=mongodb+srv://nasirhuzaifa95:1234@cluster0.uir19.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+   mongodb+srv://nasirhuzaifa95:1234@cluster0.uir19.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
    ```
 
 4. Start the backend server:
@@ -47,7 +45,7 @@ A web application for managing lost and found items at FAST-NUCES.
 
 ## Implemented Features
 
-- **User Authentication**: Register and login functionality
+- **User Authentication**: Register and login functionality (no JWT)
 - **Report Lost/Found Items**: Users can submit reports with images and details
 - **Browse Items**: View lost and found items with filtering options
 - **Item Details**: View complete information about reported items
@@ -56,6 +54,12 @@ A web application for managing lost and found items at FAST-NUCES.
 - **User Profile**: View and manage your reported items
 
 ## Important Notes
+
+This is a simplified version of the application with:
+- Simple authentication (no JWT)
+- MongoDB Atlas connection
+- File uploads for item images
+- Comments and claims functionality
 
 Both frontend and backend servers need to be running simultaneously.
 

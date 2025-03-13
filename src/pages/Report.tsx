@@ -126,7 +126,7 @@ const ReportLostItemForm = ({ userId }: { userId?: string }) => {
       formData.append('status', 'lost');
       formData.append('isHighValue', 'false');
       
-      if (!reportAnonymously && contact) {
+      if (!reportAnonymously) {
         formData.append('contactMethod', contact);
       }
       
@@ -138,26 +138,13 @@ const ReportLostItemForm = ({ userId }: { userId?: string }) => {
         formData.append('image', selectedImage);
       }
       
-      console.log("Sending data:", {
-        title: itemName,
-        category,
-        description,
-        location,
-        date: dateLost,
-        status: 'lost',
-        reportedBy: userId || null,
-        contactMethod: !reportAnonymously ? contact : null
-      });
-      
       const response = await fetch('http://localhost:5000/api/items', {
         method: 'POST',
         body: formData,
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("API error:", errorData);
-        throw new Error(errorData.message || 'Failed to submit report');
+        throw new Error('Failed to submit report');
       }
       
       const data = await response.json();
@@ -173,7 +160,7 @@ const ReportLostItemForm = ({ userId }: { userId?: string }) => {
       console.error('Error submitting report:', error);
       toast({
         title: "Error",
-        description: "Failed to submit report. Please try again. Error: " + (error instanceof Error ? error.message : 'Unknown error'),
+        description: "Failed to submit report. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -422,7 +409,7 @@ const ReportFoundItemForm = ({ userId }: { userId?: string }) => {
       formData.append('status', 'found');
       formData.append('isHighValue', 'false');
       
-      if (!reportAnonymously && contact) {
+      if (!reportAnonymously) {
         formData.append('contactMethod', contact);
       }
       
@@ -434,26 +421,13 @@ const ReportFoundItemForm = ({ userId }: { userId?: string }) => {
         formData.append('image', selectedImage);
       }
       
-      console.log("Sending data:", {
-        title: itemName,
-        category,
-        description,
-        location,
-        date: dateFound,
-        status: 'found',
-        reportedBy: userId || null,
-        contactMethod: !reportAnonymously ? contact : null
-      });
-      
       const response = await fetch('http://localhost:5000/api/items', {
         method: 'POST',
         body: formData,
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("API error:", errorData);
-        throw new Error(errorData.message || 'Failed to submit report');
+        throw new Error('Failed to submit report');
       }
       
       const data = await response.json();
@@ -469,7 +443,7 @@ const ReportFoundItemForm = ({ userId }: { userId?: string }) => {
       console.error('Error submitting report:', error);
       toast({
         title: "Error",
-        description: "Failed to submit report. Please try again. Error: " + (error instanceof Error ? error.message : 'Unknown error'),
+        description: "Failed to submit report. Please try again.",
         variant: "destructive",
       });
     } finally {

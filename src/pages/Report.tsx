@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Upload, MapPin, Calendar, Info, FileCheck, Check, EyeOff } from "lucide-react";
+import { Camera, Upload, MapPin, Calendar, Info, FileCheck, Check, EyeOff, Loader2 } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -25,7 +25,7 @@ const Report = () => {
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('type') === 'found' ? 'found' : 'lost';
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -61,11 +61,11 @@ const Report = () => {
             </TabsList>
             
             <TabsContent value="lost">
-              <ReportLostItemForm />
+              <ReportLostItemForm userId={user?.id} />
             </TabsContent>
             
             <TabsContent value="found">
-              <ReportFoundItemForm />
+              <ReportFoundItemForm userId={user?.id} />
             </TabsContent>
           </Tabs>
         </div>
@@ -76,18 +76,96 @@ const Report = () => {
   );
 };
 
-const ReportLostItemForm = () => {
+const ReportLostItemForm = ({ userId }: { userId?: string }) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [reportAnonymously, setReportAnonymously] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [itemName, setItemName] = useState('');
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
+  const [dateLost, setDateLost] = useState('');
+  const [contact, setContact] = useState('');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedImage(e.target.files[0]);
+    }
+  };
+  
+  const handleFileButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Report Submitted",
-      description: reportAnonymously 
-        ? "Your anonymous lost item report has been submitted successfully!" 
-        : "Your lost item report has been submitted successfully!",
-    });
+    
+    if (!itemName || !category || !description || !location || !dateLost) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('title', itemName);
+      formData.append('category', category);
+      formData.append('description', description);
+      formData.append('location', location);
+      formData.append('date', dateLost);
+      formData.append('status', 'lost');
+      formData.append('isHighValue', 'false');
+      
+      if (!reportAnonymously) {
+        formData.append('contactMethod', contact);
+      }
+      
+      if (userId) {
+        formData.append('reportedBy', userId);
+      }
+      
+      if (selectedImage) {
+        formData.append('image', selectedImage);
+      }
+      
+      const response = await fetch('http://localhost:5000/api/items', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit report');
+      }
+      
+      const data = await response.json();
+      
+      toast({
+        title: "Report Submitted",
+        description: "Your lost item report has been submitted successfully!",
+      });
+      
+      // Navigate to the item detail page
+      navigate(`/items/${data._id}`);
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   
   return (
@@ -103,12 +181,18 @@ const ReportLostItemForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label htmlFor="item-name" className="text-sm font-medium">Item Name</label>
-              <Input id="item-name" placeholder="e.g. Laptop, ID Card, Wallet" required />
+              <Input 
+                id="item-name" 
+                placeholder="e.g. Laptop, ID Card, Wallet" 
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                required 
+              />
             </div>
             
             <div className="space-y-2">
               <label htmlFor="category" className="text-sm font-medium">Category</label>
-              <Select>
+              <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -130,6 +214,8 @@ const ReportLostItemForm = () => {
               id="description" 
               placeholder="Provide detailed description of the item (color, brand, identifying marks, etc.)" 
               rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               required
             />
           </div>
@@ -140,7 +226,7 @@ const ReportLostItemForm = () => {
                 <MapPin className="h-4 w-4" />
                 Last Seen Location
               </label>
-              <Select>
+              <Select value={location} onValueChange={setLocation}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
@@ -161,27 +247,64 @@ const ReportLostItemForm = () => {
                 <Calendar className="h-4 w-4" />
                 Date Lost
               </label>
-              <Input type="date" id="date-lost" required />
+              <Input 
+                type="date" 
+                id="date-lost" 
+                value={dateLost}
+                onChange={(e) => setDateLost(e.target.value)}
+                required 
+              />
             </div>
           </div>
           
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-1">
               <Upload className="h-4 w-4" />
-              Upload Image (Optional)
+              Upload Image
             </label>
-            <div className="border border-dashed border-border rounded-lg p-8 text-center">
-              <Camera className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-2">
-                Drag & drop an image or click to browse
-              </p>
-              <Button type="button" size="sm" variant="outline">Browse Files</Button>
+            <div 
+              className={`border border-dashed rounded-lg p-8 text-center ${
+                selectedImage ? 'border-primary' : 'border-border'
+              }`}
+              onClick={handleFileButtonClick}
+            >
+              {selectedImage ? (
+                <div className="space-y-2">
+                  <img 
+                    src={URL.createObjectURL(selectedImage)} 
+                    alt="Preview" 
+                    className="h-48 mx-auto object-contain"
+                  />
+                  <p className="text-sm">{selectedImage.name}</p>
+                </div>
+              ) : (
+                <>
+                  <Camera className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Drag & drop an image or click to browse
+                  </p>
+                </>
+              )}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                className="hidden"
+                accept="image/*"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={handleFileButtonClick}>
+                {selectedImage ? 'Change Image' : 'Browse Files'}
+              </Button>
             </div>
           </div>
           
           <div className="space-y-2">
             <div className="flex items-center space-x-2 mb-2">
-              <Checkbox id="report-anonymously" checked={reportAnonymously} onCheckedChange={(checked) => setReportAnonymously(checked as boolean)} />
+              <Checkbox 
+                id="report-anonymously" 
+                checked={reportAnonymously} 
+                onCheckedChange={(checked) => setReportAnonymously(checked as boolean)}
+              />
               <Label htmlFor="report-anonymously" className="flex items-center cursor-pointer">
                 <EyeOff className="h-4 w-4 mr-2 text-muted-foreground" />
                 Report Anonymously
@@ -191,7 +314,13 @@ const ReportLostItemForm = () => {
             {!reportAnonymously && (
               <>
                 <label htmlFor="contact" className="text-sm font-medium">Contact Information</label>
-                <Input id="contact" placeholder="Your email or phone number" required={!reportAnonymously} />
+                <Input 
+                  id="contact" 
+                  placeholder="Your email or phone number" 
+                  required={!reportAnonymously}
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                />
               </>
             )}
             
@@ -211,9 +340,18 @@ const ReportLostItemForm = () => {
             </p>
           </div>
           
-          <Button type="submit" className="w-full">
-            <FileCheck className="mr-2 h-4 w-4" />
-            Submit Lost Item Report
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <FileCheck className="mr-2 h-4 w-4" />
+                Submit Lost Item Report
+              </>
+            )}
           </Button>
         </form>
       </CardContent>
@@ -221,18 +359,96 @@ const ReportLostItemForm = () => {
   );
 };
 
-const ReportFoundItemForm = () => {
+const ReportFoundItemForm = ({ userId }: { userId?: string }) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [reportAnonymously, setReportAnonymously] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [itemName, setItemName] = useState('');
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
+  const [dateFound, setDateFound] = useState('');
+  const [contact, setContact] = useState('');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedImage(e.target.files[0]);
+    }
+  };
+  
+  const handleFileButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Report Submitted",
-      description: reportAnonymously 
-        ? "Thank you for anonymously reporting a found item!" 
-        : "Thank you for reporting a found item!",
-    });
+    
+    if (!itemName || !category || !description || !location || !dateFound) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('title', itemName);
+      formData.append('category', category);
+      formData.append('description', description);
+      formData.append('location', location);
+      formData.append('date', dateFound);
+      formData.append('status', 'found');
+      formData.append('isHighValue', 'false');
+      
+      if (!reportAnonymously) {
+        formData.append('contactMethod', contact);
+      }
+      
+      if (userId) {
+        formData.append('reportedBy', userId);
+      }
+      
+      if (selectedImage) {
+        formData.append('image', selectedImage);
+      }
+      
+      const response = await fetch('http://localhost:5000/api/items', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit report');
+      }
+      
+      const data = await response.json();
+      
+      toast({
+        title: "Report Submitted",
+        description: "Your found item report has been submitted successfully!",
+      });
+      
+      // Navigate to the item detail page
+      navigate(`/items/${data._id}`);
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   
   return (
@@ -248,12 +464,18 @@ const ReportFoundItemForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label htmlFor="item-name" className="text-sm font-medium">Item Name</label>
-              <Input id="item-name" placeholder="e.g. Laptop, ID Card, Wallet" required />
+              <Input 
+                id="item-name" 
+                placeholder="e.g. Laptop, ID Card, Wallet" 
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                required 
+              />
             </div>
             
             <div className="space-y-2">
               <label htmlFor="category" className="text-sm font-medium">Category</label>
-              <Select>
+              <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -275,6 +497,8 @@ const ReportFoundItemForm = () => {
               id="description" 
               placeholder="Provide a general description (avoid including unique identifying details that only the owner would know)"
               rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               required
             />
           </div>
@@ -285,7 +509,7 @@ const ReportFoundItemForm = () => {
                 <MapPin className="h-4 w-4" />
                 Found Location
               </label>
-              <Select>
+              <Select value={location} onValueChange={setLocation}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
@@ -306,7 +530,13 @@ const ReportFoundItemForm = () => {
                 <Calendar className="h-4 w-4" />
                 Date Found
               </label>
-              <Input type="date" id="date-found" required />
+              <Input 
+                type="date" 
+                id="date-found" 
+                value={dateFound}
+                onChange={(e) => setDateFound(e.target.value)}
+                required 
+              />
             </div>
           </div>
           
@@ -315,18 +545,49 @@ const ReportFoundItemForm = () => {
               <Upload className="h-4 w-4" />
               Upload Image
             </label>
-            <div className="border border-dashed border-border rounded-lg p-8 text-center">
-              <Camera className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-2">
-                Drag & drop an image or click to browse
-              </p>
-              <Button type="button" size="sm" variant="outline">Browse Files</Button>
+            <div 
+              className={`border border-dashed rounded-lg p-8 text-center ${
+                selectedImage ? 'border-primary' : 'border-border'
+              }`}
+              onClick={handleFileButtonClick}
+            >
+              {selectedImage ? (
+                <div className="space-y-2">
+                  <img 
+                    src={URL.createObjectURL(selectedImage)} 
+                    alt="Preview" 
+                    className="h-48 mx-auto object-contain"
+                  />
+                  <p className="text-sm">{selectedImage.name}</p>
+                </div>
+              ) : (
+                <>
+                  <Camera className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Drag & drop an image or click to browse
+                  </p>
+                </>
+              )}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                className="hidden"
+                accept="image/*"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={handleFileButtonClick}>
+                {selectedImage ? 'Change Image' : 'Browse Files'}
+              </Button>
             </div>
           </div>
           
           <div className="space-y-2">
             <div className="flex items-center space-x-2 mb-2">
-              <Checkbox id="report-anonymously" checked={reportAnonymously} onCheckedChange={(checked) => setReportAnonymously(checked as boolean)} />
+              <Checkbox 
+                id="report-anonymously" 
+                checked={reportAnonymously} 
+                onCheckedChange={(checked) => setReportAnonymously(checked as boolean)}
+              />
               <Label htmlFor="report-anonymously" className="flex items-center cursor-pointer">
                 <EyeOff className="h-4 w-4 mr-2 text-muted-foreground" />
                 Report Anonymously
@@ -336,7 +597,13 @@ const ReportFoundItemForm = () => {
             {!reportAnonymously && (
               <>
                 <label htmlFor="contact" className="text-sm font-medium">Contact Information</label>
-                <Input id="contact" placeholder="Your email or phone number" required={!reportAnonymously} />
+                <Input 
+                  id="contact" 
+                  placeholder="Your email or phone number" 
+                  required={!reportAnonymously}
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                />
               </>
             )}
             
@@ -354,9 +621,18 @@ const ReportFoundItemForm = () => {
             </p>
           </div>
           
-          <Button type="submit" className="w-full">
-            <FileCheck className="mr-2 h-4 w-4" />
-            Submit Found Item Report
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <FileCheck className="mr-2 h-4 w-4" />
+                Submit Found Item Report
+              </>
+            )}
           </Button>
         </form>
       </CardContent>

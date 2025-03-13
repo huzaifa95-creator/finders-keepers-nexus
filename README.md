@@ -1,7 +1,7 @@
 
 # FAST-NUCES Lost & Found Portal
 
-A simplified web application for managing lost and found items at FAST-NUCES.
+A web application for managing lost and found items at FAST-NUCES.
 
 ## Getting Started
 
@@ -17,7 +17,10 @@ A simplified web application for managing lost and found items at FAST-NUCES.
    npm install
    ```
 
-3. The MongoDB connection string is already set up in the .env file.
+3. The MongoDB connection string is already set up in the server-simple.js file. It's using:
+   ```
+   mongodb+srv://nasirhuzaifa95:1234@cluster0.uir19.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+   ```
 
 4. Start the backend server:
    ```
@@ -40,6 +43,26 @@ A simplified web application for managing lost and found items at FAST-NUCES.
    ```
    The frontend will be available at http://localhost:5173 (or similar port)
 
+## Implemented Features
+
+- **User Authentication**: Register and login functionality (no JWT)
+- **Report Lost/Found Items**: Users can submit reports with images and details
+- **Browse Items**: View lost and found items with filtering options
+- **Item Details**: View complete information about reported items
+- **Claims**: Submit claims for found items or report finding a lost item
+- **Comments**: Users can comment on item listings
+- **User Profile**: View and manage your reported items
+
+## Important Notes
+
+This is a simplified version of the application with:
+- Simple authentication (no JWT)
+- MongoDB Atlas connection
+- File uploads for item images
+- Comments and claims functionality
+
+Both frontend and backend servers need to be running simultaneously.
+
 ## Test Accounts
 
 You can register a new account or use these test accounts:
@@ -51,12 +74,3 @@ You can register a new account or use these test accounts:
 - **Admin Account**:
   - Email: admin@nu.edu.pk
   - Password: admin123
-
-## Important Notes
-
-This is a simplified version of the application with:
-- No JWT authentication (simplified auth)
-- MongoDB Atlas connection
-- Basic CRUD operations
-
-Both frontend and backend servers need to be running simultaneously.

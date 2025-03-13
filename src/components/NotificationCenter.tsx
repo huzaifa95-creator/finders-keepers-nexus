@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, X, AlertCircle, Check, Clock, User, MessageSquare, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,10 +8,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 // Types
 export interface Notification {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   timestamp: string;
@@ -20,87 +21,117 @@ export interface Notification {
   link?: string;
 }
 
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    title: 'Claim Approved',
-    description: 'Your claim for "MacBook Pro" has been approved. Please visit CS Academic Office to collect it.',
-    timestamp: '10 minutes ago',
-    read: false,
-    type: 'claim',
-    link: '/items/1'
-  },
-  {
-    id: '2',
-    title: 'New Comment',
-    description: 'Someone commented on your lost item "Blue Backpack": "I think I saw it in the cafeteria yesterday"',
-    timestamp: '1 hour ago',
-    read: false,
-    type: 'comment',
-    link: '/items/2'
-  },
-  {
-    id: '3',
-    title: 'Possible Match Found',
-    description: 'A found item matches your lost "Student ID Card". Check it out!',
-    timestamp: '3 hours ago',
-    read: true,
-    type: 'alert',
-    link: '/items/3'
-  },
-  {
-    id: '4',
-    title: 'Claim Request',
-    description: 'Someone has claimed the "Wireless Earbuds" you reported found.',
-    timestamp: '1 day ago',
-    read: true,
-    type: 'claim',
-    link: '/items/4'
-  },
-  {
-    id: '5',
-    title: 'System Notification',
-    description: 'Your lost item report will expire in 2 days. Update it to keep it active.',
-    timestamp: '2 days ago',
-    read: true,
-    type: 'system',
-    link: '/my-items'
-  }
-];
-
 const NotificationCenter = () => {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth();
   
   const unreadCount = notifications.filter(n => !n.read).length;
   
-  const markAllAsRead = () => {
-    const updatedNotifications = notifications.map(notification => ({
-      ...notification,
-      read: true
-    }));
-    setNotifications(updatedNotifications);
-    toast({
-      title: "All notifications marked as read",
-      description: `${unreadCount} notification${unreadCount !== 1 ? 's' : ''} marked as read.`
-    });
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      fetchNotifications();
+    }
+  }, [isAuthenticated, user?.id]);
+  
+  const fetchNotifications = async () => {
+    if (!user?.id) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data);
+      } else {
+        console.error('Failed to fetch notifications');
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+    }
   };
   
-  const markAsRead = (id: string) => {
-    const updatedNotifications = notifications.map(notification => 
-      notification.id === id ? { ...notification, read: true } : notification
-    );
-    setNotifications(updatedNotifications);
+  const markAllAsRead = async () => {
+    if (!user?.id || unreadCount === 0) return;
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications/mark-all-read`, {
+        method: 'PUT'
+      });
+      
+      if (response.ok) {
+        const updatedNotifications = notifications.map(notification => ({
+          ...notification,
+          read: true
+        }));
+        
+        setNotifications(updatedNotifications);
+        
+        toast({
+          title: "All notifications marked as read",
+          description: `${unreadCount} notification${unreadCount !== 1 ? 's' : ''} marked as read.`
+        });
+      }
+    } catch (error) {
+      console.error('Error marking notifications as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark notifications as read.",
+        variant: "destructive"
+      });
+    }
   };
   
-  const clearAll = () => {
-    setNotifications([]);
-    setOpen(false);
-    toast({
-      title: "Notifications cleared",
-      description: "All notifications have been removed."
-    });
+  const markAsRead = async (id: string) => {
+    if (!user?.id) return;
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications/${id}/mark-read`, {
+        method: 'PUT'
+      });
+      
+      if (response.ok) {
+        const updatedNotifications = notifications.map(notification => 
+          notification._id === id ? { ...notification, read: true } : notification
+        );
+        
+        setNotifications(updatedNotifications);
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+  
+  const clearAll = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications/clear-all`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        setNotifications([]);
+        setOpen(false);
+        
+        toast({
+          title: "Notifications cleared",
+          description: "All notifications have been removed."
+        });
+      }
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+      toast({
+        title: "Error",
+        description: "Failed to clear notifications.",
+        variant: "destructive"
+      });
+    }
   };
   
   const getNotificationIcon = (type: Notification['type']) => {
@@ -118,13 +149,47 @@ const NotificationCenter = () => {
     }
   };
   
+  // Format relative time (e.g., "10 minutes ago")
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds} seconds ago`;
+    }
+    
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`;
+    }
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) {
+      return `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} ago`;
+    }
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 30) {
+      return `${diffInDays} day${diffInDays !== 1 ? 's' : ''} ago`;
+    }
+    
+    const diffInMonths = Math.floor(diffInDays / 30);
+    return `${diffInMonths} month${diffInMonths !== 1 ? 's' : ''} ago`;
+  };
+  
   return (
     <>
       <Button
         variant="ghost"
         size="icon"
         className="relative"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true);
+          if (isAuthenticated && user?.id) {
+            fetchNotifications();
+          }
+        }}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -165,7 +230,14 @@ const NotificationCenter = () => {
             </DialogTitle>
           </DialogHeader>
           
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex flex-col items-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                <p className="mt-2 text-sm text-muted-foreground">Loading notifications...</p>
+              </div>
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Bell className="h-12 w-12 text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-medium">No notifications</h3>
@@ -178,10 +250,10 @@ const NotificationCenter = () => {
               <div className="space-y-1">
                 {notifications.map((notification) => (
                   <Link 
-                    key={notification.id}
+                    key={notification._id}
                     to={notification.link || '#'}
                     onClick={() => {
-                      markAsRead(notification.id);
+                      markAsRead(notification._id);
                       setOpen(false);
                     }}
                     className="block"
@@ -207,7 +279,7 @@ const NotificationCenter = () => {
                           {notification.description}
                         </p>
                         <p className="text-xs text-muted-foreground/70">
-                          {notification.timestamp}
+                          {formatRelativeTime(notification.timestamp)}
                         </p>
                       </div>
                     </div>

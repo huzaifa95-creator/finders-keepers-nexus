@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useAuth } from '@/context/AuthContext';
 
 interface Item {
   _id: string;
@@ -43,8 +44,8 @@ interface Item {
   createdAt: string;
   status: 'lost' | 'found';
   isHighValue: boolean;
-  contactMethod: string;
-  reportedBy: {
+  contactMethod?: string;
+  reportedBy?: {
     name: string;
     _id: string;
   };
@@ -55,7 +56,7 @@ interface Comment {
   _id: string;
   text: string;
   createdAt: string;
-  user: {
+  user?: {
     name: string;
     _id: string;
   };
@@ -64,6 +65,8 @@ interface Comment {
 const ItemDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [item, setItem] = useState<Item | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
@@ -114,10 +117,10 @@ const ItemDetail = () => {
     // Get form data
     const formData = new FormData(event.currentTarget);
     const claimData = {
-      itemId: id,
       description: formData.get('description'),
       contactInfo: formData.get('contactInfo'),
-      proofDetails: formData.get('proofDetails')
+      proofDetails: formData.get('proofDetails'),
+      userId: user?.id
     };
     
     setSubmitting(true);
@@ -163,7 +166,10 @@ const ItemDetail = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: commentText }),
+        body: JSON.stringify({ 
+          text: commentText,
+          userId: user?.id
+        }),
       });
       
       if (!response.ok) {
@@ -509,7 +515,7 @@ const ItemDetail = () => {
                   comments.map((comment) => (
                     <div key={comment._id} className="flex gap-3">
                       <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
-                        {comment.user?.name.charAt(0).toUpperCase() || 'U'}
+                        {comment.user?.name?.charAt(0).toUpperCase() || 'U'}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
@@ -60,11 +61,11 @@ const Report = () => {
             </TabsList>
             
             <TabsContent value="lost">
-              <ReportLostItemForm userId={user?._id} />
+              <ReportLostItemForm userId={user?.id} />
             </TabsContent>
             
             <TabsContent value="found">
-              <ReportFoundItemForm userId={user?._id} />
+              <ReportFoundItemForm userId={user?.id} />
             </TabsContent>
           </Tabs>
         </div>

@@ -29,9 +29,8 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
   // Check if user is already logged in
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
     
-    if (storedUser && storedToken) {
+    if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
     setIsLoading(false);
@@ -66,7 +65,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', data.token);
       
       return Promise.resolve();
     } catch (error) {
@@ -105,7 +103,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', data.token);
       
       return Promise.resolve();
     } catch (error) {
@@ -118,7 +115,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
-    localStorage.removeItem('token');
   };
 
   return (

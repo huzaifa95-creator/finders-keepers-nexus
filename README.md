@@ -1,69 +1,62 @@
-# Welcome to your Lovable project
 
-## Project info
+# FAST-NUCES Lost & Found Portal
 
-**URL**: https://lovable.dev/projects/bc54c5cc-c236-4283-892e-4ddfd11f9f65
+A simplified web application for managing lost and found items at FAST-NUCES.
 
-## How can I edit this code?
+## Getting Started
 
-There are several ways of editing your application.
+### Backend Setup
 
-**Use Lovable**
+1. Navigate to the backend directory:
+   ```
+   cd backend
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/bc54c5cc-c236-4283-892e-4ddfd11f9f65) and start prompting.
+2. Install dependencies:
+   ```
+   npm install
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+3. The MongoDB connection string is already set up in the .env file.
 
-**Use your preferred IDE**
+4. Start the backend server:
+   ```
+   npm run dev
+   ```
+   The server will run on http://localhost:5000
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Frontend Setup
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. In a new terminal window, navigate to the project root directory.
 
-Follow these steps:
+2. Install dependencies:
+   ```
+   npm install
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+3. Start the frontend development server:
+   ```
+   npm run dev
+   ```
+   The frontend will be available at http://localhost:5173 (or similar port)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Test Accounts
 
-# Step 3: Install the necessary dependencies.
-npm i
+You can register a new account or use these test accounts:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+- **Student Account**:
+  - Email: student@nu.edu.pk
+  - Password: password123
 
-**Edit a file directly in GitHub**
+- **Admin Account**:
+  - Email: admin@nu.edu.pk
+  - Password: admin123
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Important Notes
 
-**Use GitHub Codespaces**
+This is a simplified version of the application with:
+- No JWT authentication (simplified auth)
+- MongoDB Atlas connection
+- Basic CRUD operations
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/bc54c5cc-c236-4283-892e-4ddfd11f9f65) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+Both frontend and backend servers need to be running simultaneously.

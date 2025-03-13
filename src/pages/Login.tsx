@@ -121,7 +121,7 @@ const Login = () => {
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-center text-sm text-muted-foreground">
               <p>
-                FAST-NUCES students and staff can use their university email to log in
+                Use any email to create an account
               </p>
               <div className="mt-1">
                 <span>For testing, use:</span>

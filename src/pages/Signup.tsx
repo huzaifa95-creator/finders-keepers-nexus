@@ -42,16 +42,6 @@ const Signup = () => {
       return;
     }
 
-    // Check if email is a valid FAST-NUCES email
-    if (!email.endsWith('@nu.edu.pk')) {
-      toast({
-        title: "Error",
-        description: "Please use your FAST-NUCES email (ending with @nu.edu.pk)",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsSubmitting(true);
       await signup(name, email, password);
@@ -80,7 +70,7 @@ const Signup = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
             <CardDescription>
-              Sign up for the FAST-NUCES Lost & Found portal
+              Sign up for the Lost & Found portal
             </CardDescription>
           </CardHeader>
           
@@ -109,7 +99,7 @@ const Signup = () => {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="yourname@nu.edu.pk"
+                    placeholder="Enter your email"
                     className="pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -117,7 +107,7 @@ const Signup = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Please use your FAST-NUCES email address
+                  Use any email address (use email with 'admin' in it for admin privileges)
                 </p>
               </div>
               

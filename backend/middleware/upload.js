@@ -32,6 +32,19 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+// Error handler
+const handleUploadError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    // A Multer error occurred when uploading
+    return res.status(400).json({ message: `Upload error: ${err.message}` });
+  } else if (err) {
+    // An unknown error occurred
+    return res.status(500).json({ message: `Server error: ${err.message}` });
+  }
+  // No error occurred, continue
+  next();
+};
+
 // Configure multer
 const upload = multer({
   storage: storage,

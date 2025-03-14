@@ -24,6 +24,30 @@ const auth = async (req, res, next) => {
   }
 };
 
+// Optional auth middleware - allows requests to proceed with or without auth
+const optionalAuth = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      // Just proceed without user info
+      return next();
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (user) {
+      req.user = user;
+    }
+    
+    next();
+  } catch (error) {
+    // Just proceed without user info on error
+    next();
+  }
+};
+
 // Admin middleware
 const admin = (req, res, next) => {
   if (req.user.role !== 'admin') {
@@ -32,4 +56,4 @@ const admin = (req, res, next) => {
   next();
 };
 
-module.exports = { auth, admin };
+module.exports = { auth, optionalAuth, admin };

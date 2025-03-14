@@ -47,6 +47,15 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'API is working' });
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    message: 'Server error', 
+    error: process.env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred' 
+  });
+});
+
 // Set port
 const PORT = process.env.PORT || 5000;
 

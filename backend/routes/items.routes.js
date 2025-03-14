@@ -18,11 +18,10 @@ router.get('/:id', itemsController.getItemById);
 
 // @route   POST /api/items
 // @desc    Create a new item
-// @access  Private
+// @access  Public (was Private)
 router.post(
   '/',
   [
-    auth,
     upload.single('image'),
     [
       check('title', 'Title is required').not().isEmpty(),

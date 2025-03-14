@@ -66,8 +66,14 @@ exports.createItem = async (req, res) => {
     console.log('Create item request body:', req.body);
     console.log('Create item request file:', req.file);
     
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    
     const { title, description, type, category, location, date, user, contactMethod } = req.body;
     
+    // Create a new item instance
     const newItem = new Item({
       title,
       description,
@@ -89,7 +95,7 @@ exports.createItem = async (req, res) => {
     res.status(201).json(item);
   } catch (error) {
     console.error('Error creating item:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 

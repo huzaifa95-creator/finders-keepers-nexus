@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
@@ -89,6 +88,7 @@ const ReportLostItemForm = ({ userId }: { userId?: string }) => {
   const [contact, setContact] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
   
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -140,24 +140,30 @@ const ReportLostItemForm = ({ userId }: { userId?: string }) => {
       
       console.log("Submitting form data:", Object.fromEntries(formData));
       
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {};
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch('http://localhost:5000/api/items', {
         method: 'POST',
         body: formData,
+        headers
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit report');
-      }
-      
       const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to submit report');
+      }
       
       toast({
         title: "Report Submitted",
         description: "Your lost item report has been submitted successfully!",
       });
       
-      // Navigate to the item detail page
       navigate(`/items/${data._id}`);
     } catch (error) {
       console.error('Error submitting report:', error);
@@ -375,6 +381,7 @@ const ReportFoundItemForm = ({ userId }: { userId?: string }) => {
   const [contact, setContact] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
   
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -426,24 +433,30 @@ const ReportFoundItemForm = ({ userId }: { userId?: string }) => {
       
       console.log("Submitting found item form data:", Object.fromEntries(formData));
       
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {};
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch('http://localhost:5000/api/items', {
         method: 'POST',
         body: formData,
+        headers
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit report');
-      }
-      
       const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to submit report');
+      }
       
       toast({
         title: "Report Submitted",
         description: "Your found item report has been submitted successfully!",
       });
       
-      // Navigate to the item detail page
       navigate(`/items/${data._id}`);
     } catch (error) {
       console.error('Error submitting report:', error);

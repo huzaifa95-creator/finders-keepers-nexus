@@ -40,12 +40,20 @@ const itemSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    default: null
+  },
+  contactMethod: {
+    type: String,
+    default: null
   },
   claimedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     default: null
+  },
+  isHighValue: {
+    type: Boolean,
+    default: false
   },
   createdAt: {
     type: Date,

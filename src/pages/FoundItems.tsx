@@ -20,10 +20,10 @@ interface Item {
   _id: string;
   title: string;
   category: string;
-  image: string;
+  imageUrl: string;
   location: string;
   createdAt: string;
-  status: 'lost' | 'found';
+  type: 'lost' | 'found';
   isHighValue: boolean;
 }
 
@@ -40,13 +40,14 @@ const FoundItems = () => {
     const fetchItems = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5000/api/items/found');
+        const response = await fetch('http://localhost:5000/api/items?type=found');
         
         if (!response.ok) {
           throw new Error('Failed to fetch found items');
         }
         
         const data = await response.json();
+        console.log('Found items data:', data);
         setItems(data);
         setError(null);
       } catch (err) {
@@ -239,11 +240,11 @@ const FoundItems = () => {
                   id={item._id}
                   title={item.title}
                   category={item.category}
-                  image={`http://localhost:5000/${item.image}`}
+                  image={`http://localhost:5000${item.imageUrl}`}
                   location={item.location}
                   date={formatDate(item.createdAt)}
                   status="found"
-                  isHighValue={item.isHighValue}
+                  isHighValue={item.isHighValue || false}
                 />
               ))}
             </div>

@@ -123,15 +123,15 @@ const ReportLostItemForm = ({ userId }: { userId?: string }) => {
       formData.append('description', description);
       formData.append('location', location);
       formData.append('date', dateLost);
-      formData.append('status', 'lost');
-      formData.append('isHighValue', 'false');
+      formData.append('type', 'lost');
+      formData.append('status', 'pending');
       
-      if (!reportAnonymously) {
+      if (!reportAnonymously && contact) {
         formData.append('contactMethod', contact);
       }
       
       if (userId) {
-        formData.append('reportedBy', userId);
+        formData.append('user', userId);
       }
       
       if (selectedImage) {
@@ -409,15 +409,15 @@ const ReportFoundItemForm = ({ userId }: { userId?: string }) => {
       formData.append('description', description);
       formData.append('location', location);
       formData.append('date', dateFound);
-      formData.append('status', 'found');
-      formData.append('isHighValue', 'false');
+      formData.append('type', 'found');
+      formData.append('status', 'pending');
       
-      if (!reportAnonymously) {
+      if (!reportAnonymously && contact) {
         formData.append('contactMethod', contact);
       }
       
       if (userId) {
-        formData.append('reportedBy', userId);
+        formData.append('user', userId);
       }
       
       if (selectedImage) {

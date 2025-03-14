@@ -58,7 +58,9 @@ A web application for managing lost and found items at FAST-NUCES.
 
 ## Important Notes
 
-Both frontend and backend servers need to be running simultaneously.
+- Both frontend and backend servers need to be running simultaneously.
+- Ensure the MongoDB connection is working properly.
+- Uploads directory is automatically created for storing item images.
 
 ## Test Accounts
 
@@ -71,3 +73,12 @@ You can register a new account or use these test accounts:
 - **Admin Account**:
   - Email: admin@nu.edu.pk
   - Password: admin123
+
+## Troubleshooting
+
+If you encounter any issues:
+
+1. Make sure both frontend and backend servers are running
+2. Check the MongoDB connection string in the backend/.env file
+3. Verify that the backend server is accessible at http://localhost:5000/api/test
+4. Clear browser cache and refresh the page

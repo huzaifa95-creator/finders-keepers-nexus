@@ -19,6 +19,13 @@ app.use(express.urlencoded({ extended: true }));
 // Make uploads directory static
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Create uploads directory if it doesn't exist
+const fs = require('fs');
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
@@ -31,11 +38,9 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Routes
 app.use('/api/auth', require('./routes/simplified-auth.routes'));
-
-// Simplified version - no JWT authentication middleware required
 app.use('/api/items', require('./routes/items.routes'));
 app.use('/api/community', require('./routes/community.routes'));
-app.use('/api/users', require('./routes/user.routes'));
+app.use('/api/users', require('./routes/notification.routes'));
 
 // Simple test route
 app.get('/api/test', (req, res) => {

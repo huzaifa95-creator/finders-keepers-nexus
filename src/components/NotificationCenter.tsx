@@ -41,6 +41,45 @@ const NotificationCenter = () => {
     
     setLoading(true);
     try {
+      // If we're in development, use dummy notification data
+      if (process.env.NODE_ENV === 'development') {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Dummy notifications
+        const dummyNotifications: Notification[] = [
+          {
+            _id: '1',
+            title: 'Your Lost Item Claimed',
+            description: 'Someone has claimed your lost laptop',
+            timestamp: new Date().toISOString(),
+            read: false,
+            type: 'claim',
+            link: '/items/1'
+          },
+          {
+            _id: '2',
+            title: 'Comment on Your Post',
+            description: 'Someone commented on your community post',
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+            read: true,
+            type: 'comment',
+            link: '/community/1'
+          },
+          {
+            _id: '3',
+            title: 'System Notification',
+            description: 'Welcome to the FAST-NUCES Lost & Found Portal!',
+            timestamp: new Date(Date.now() - 86400000).toISOString(),
+            read: true,
+            type: 'system'
+          }
+        ];
+        
+        setNotifications(dummyNotifications);
+        return;
+      }
+      
       const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications`);
       
       if (response.ok) {
@@ -50,7 +89,7 @@ const NotificationCenter = () => {
         console.error('Failed to fetch notifications');
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('Failed to fetch notifications');
     } finally {
       setLoading(false);
     }
@@ -60,6 +99,23 @@ const NotificationCenter = () => {
     if (!user?.id || unreadCount === 0) return;
     
     try {
+      // In development mode, just update local state
+      if (process.env.NODE_ENV === 'development') {
+        const updatedNotifications = notifications.map(notification => ({
+          ...notification,
+          read: true
+        }));
+        
+        setNotifications(updatedNotifications);
+        
+        toast({
+          title: "All notifications marked as read",
+          description: `${unreadCount} notification${unreadCount !== 1 ? 's' : ''} marked as read.`
+        });
+        
+        return;
+      }
+      
       const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications/mark-all-read`, {
         method: 'PUT'
       });
@@ -91,6 +147,16 @@ const NotificationCenter = () => {
     if (!user?.id) return;
     
     try {
+      // In development mode, just update local state
+      if (process.env.NODE_ENV === 'development') {
+        const updatedNotifications = notifications.map(notification => 
+          notification._id === id ? { ...notification, read: true } : notification
+        );
+        
+        setNotifications(updatedNotifications);
+        return;
+      }
+      
       const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications/${id}/mark-read`, {
         method: 'PUT'
       });
@@ -111,6 +177,19 @@ const NotificationCenter = () => {
     if (!user?.id) return;
     
     try {
+      // In development mode, just update local state
+      if (process.env.NODE_ENV === 'development') {
+        setNotifications([]);
+        setOpen(false);
+        
+        toast({
+          title: "Notifications cleared",
+          description: "All notifications have been removed."
+        });
+        
+        return;
+      }
+      
       const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications/clear-all`, {
         method: 'DELETE'
       });

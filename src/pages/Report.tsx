@@ -138,13 +138,16 @@ const ReportLostItemForm = ({ userId }: { userId?: string }) => {
         formData.append('image', selectedImage);
       }
       
+      console.log("Submitting form data:", Object.fromEntries(formData));
+      
       const response = await fetch('http://localhost:5000/api/items', {
         method: 'POST',
         body: formData,
       });
       
       if (!response.ok) {
-        throw new Error('Failed to submit report');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit report');
       }
       
       const data = await response.json();
@@ -231,13 +234,13 @@ const ReportLostItemForm = ({ userId }: { userId?: string }) => {
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="a-block">A-Block</SelectItem>
-                  <SelectItem value="b-block">B-Block</SelectItem>
-                  <SelectItem value="library">Library</SelectItem>
-                  <SelectItem value="cafeteria">Cafeteria</SelectItem>
-                  <SelectItem value="sports-complex">Sports Complex</SelectItem>
-                  <SelectItem value="outside">Outside Campus</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="A-Block">A-Block</SelectItem>
+                  <SelectItem value="B-Block">B-Block</SelectItem>
+                  <SelectItem value="Library">Library</SelectItem>
+                  <SelectItem value="Cafeteria">Cafeteria</SelectItem>
+                  <SelectItem value="Sports Complex">Sports Complex</SelectItem>
+                  <SelectItem value="Outside Campus">Outside Campus</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -421,13 +424,16 @@ const ReportFoundItemForm = ({ userId }: { userId?: string }) => {
         formData.append('image', selectedImage);
       }
       
+      console.log("Submitting found item form data:", Object.fromEntries(formData));
+      
       const response = await fetch('http://localhost:5000/api/items', {
         method: 'POST',
         body: formData,
       });
       
       if (!response.ok) {
-        throw new Error('Failed to submit report');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit report');
       }
       
       const data = await response.json();
@@ -514,13 +520,13 @@ const ReportFoundItemForm = ({ userId }: { userId?: string }) => {
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="a-block">A-Block</SelectItem>
-                  <SelectItem value="b-block">B-Block</SelectItem>
-                  <SelectItem value="library">Library</SelectItem>
-                  <SelectItem value="cafeteria">Cafeteria</SelectItem>
-                  <SelectItem value="sports-complex">Sports Complex</SelectItem>
-                  <SelectItem value="outside">Outside Campus</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="A-Block">A-Block</SelectItem>
+                  <SelectItem value="B-Block">B-Block</SelectItem>
+                  <SelectItem value="Library">Library</SelectItem>
+                  <SelectItem value="Cafeteria">Cafeteria</SelectItem>
+                  <SelectItem value="Sports Complex">Sports Complex</SelectItem>
+                  <SelectItem value="Outside Campus">Outside Campus</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>

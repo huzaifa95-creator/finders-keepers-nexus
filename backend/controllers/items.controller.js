@@ -9,18 +9,39 @@ const multer = require('multer');
 // Get all items with filtering
 exports.getItems = async (req, res) => {
   try {
-    const { type, category, status, search } = req.query;
+    const { 
+      type, 
+      category, 
+      status, 
+      search, 
+      location, 
+      startDate, 
+      endDate,
+      isHighValue
+    } = req.query;
     
     let query = {};
     
     if (type) query.type = type;
     if (category) query.category = category;
     if (status) query.status = status;
+    if (location) query.location = { $regex: location, $options: 'i' };
+    if (isHighValue === 'true') query.isHighValue = true;
+    
+    // Date range filtering
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = new Date(startDate);
+      if (endDate) query.date.$lte = new Date(endDate);
+    }
+    
+    // Search functionality
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
-        { location: { $regex: search, $options: 'i' } }
+        { location: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } }
       ];
     }
     
@@ -71,7 +92,18 @@ exports.createItem = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
     
-    const { title, description, type, category, location, date, user, contactMethod } = req.body;
+    const { 
+      title, 
+      description, 
+      type, 
+      category, 
+      location, 
+      date, 
+      user, 
+      contactMethod,
+      isHighValue,
+      additionalDetails
+    } = req.body;
     
     // Create a new item instance
     const newItem = new Item({
@@ -84,7 +116,9 @@ exports.createItem = async (req, res) => {
       user: user || null,
       contactMethod: contactMethod || null,
       imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
-      status: 'pending'
+      status: 'pending',
+      isHighValue: isHighValue === 'true',
+      additionalDetails: additionalDetails || ''
     });
     
     console.log('Creating new item:', newItem);
@@ -113,15 +147,26 @@ exports.updateItem = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
     
-    const { title, description, category, location, date, status } = req.body;
+    const { 
+      title, 
+      description, 
+      category, 
+      location, 
+      date, 
+      status, 
+      isHighValue,
+      additionalDetails 
+    } = req.body;
     
     // Update fields
-    if (title) item.title = title;
-    if (description) item.description = description;
-    if (category) item.category = category;
-    if (location) item.location = location;
-    if (date) item.date = date;
-    if (status && req.user && req.user.role === 'admin') item.status = status;
+    if (title !== undefined) item.title = title;
+    if (description !== undefined) item.description = description;
+    if (category !== undefined) item.category = category;
+    if (location !== undefined) item.location = location;
+    if (date !== undefined) item.date = date;
+    if (status !== undefined && req.user && req.user.role === 'admin') item.status = status;
+    if (isHighValue !== undefined) item.isHighValue = isHighValue === 'true';
+    if (additionalDetails !== undefined) item.additionalDetails = additionalDetails;
     
     // Update image if provided
     if (req.file) {
@@ -135,6 +180,9 @@ exports.updateItem = async (req, res) => {
       
       item.imageUrl = `/uploads/${req.file.filename}`;
     }
+    
+    // Set updatedAt timestamp
+    item.updatedAt = Date.now();
     
     await item.save();
     

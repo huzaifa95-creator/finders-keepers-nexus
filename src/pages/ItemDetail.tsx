@@ -28,28 +28,54 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Edit,
+  Calendar,
+  Save
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
+import { format } from 'date-fns';
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface Item {
   _id: string;
   title: string;
   category: string;
   description: string;
-  image: string;
+  imageUrl: string;
   location: string;
+  date: string;
   createdAt: string;
-  status: 'lost' | 'found';
+  updatedAt: string;
+  type: 'lost' | 'found';
+  status: string;
   isHighValue: boolean;
   contactMethod?: string;
-  reportedBy?: {
+  user?: {
+    name: string;
+    _id: string;
+    email: string;
+  };
+  claimedBy?: {
     name: string;
     _id: string;
   };
-  identifyingFeatures?: string;
+  additionalDetails?: string;
 }
 
 interface Comment {
@@ -65,49 +91,72 @@ interface Comment {
 const ItemDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAuthenticated, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [item, setItem] = useState<Item | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [isClaimDialogOpen, setIsClaimDialogOpen] = useState(false);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [updateFormData, setUpdateFormData] = useState({
+    title: "",
+    description: "",
+    category: "",
+    location: "",
+    date: new Date(),
+    additionalDetails: "",
+    isHighValue: false
+  });
   
   // Fetch item data
-  useEffect(() => {
-    const fetchItemDetail = async () => {
-      if (!id) return;
-      
-      try {
-        setLoading(true);
-        const response = await fetch(`http://localhost:5000/api/items/${id}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch item details');
-        }
-        
-        const data = await response.json();
-        setItem(data);
-        
-        // Fetch comments for this item
-        const commentsResponse = await fetch(`http://localhost:5000/api/items/${id}/comments`);
-        
-        if (commentsResponse.ok) {
-          const commentsData = await commentsResponse.json();
-          setComments(commentsData);
-        }
-        
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching item details:', err);
-        setError('Failed to load item details. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchItemDetail = async () => {
+    if (!id) return;
     
+    try {
+      setLoading(true);
+      const response = await fetch(`http://localhost:5000/api/items/${id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch item details');
+      }
+      
+      const data = await response.json();
+      setItem(data);
+      
+      // Initialize update form with current data
+      if (data) {
+        setUpdateFormData({
+          title: data.title || "",
+          description: data.description || "",
+          category: data.category || "",
+          location: data.location || "",
+          date: data.date ? new Date(data.date) : new Date(),
+          additionalDetails: data.additionalDetails || "",
+          isHighValue: data.isHighValue || false
+        });
+      }
+      
+      // Fetch comments for this item
+      const commentsResponse = await fetch(`http://localhost:5000/api/items/${id}/comments`);
+      
+      if (commentsResponse.ok) {
+        const commentsData = await commentsResponse.json();
+        setComments(commentsData);
+      }
+      
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching item details:', err);
+      setError('Failed to load item details. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
     fetchItemDetail();
   }, [id]);
   
@@ -130,6 +179,7 @@ const ItemDetail = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify(claimData),
       });
@@ -143,11 +193,67 @@ const ItemDetail = () => {
         description: "Your claim has been submitted. You will be notified when it's reviewed.",
       });
       setIsClaimDialogOpen(false);
+      // Refresh item details to show updated status
+      fetchItemDetail();
     } catch (err) {
       console.error('Error submitting claim:', err);
       toast({
         title: "Error",
         description: "Failed to submit claim. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
+  const handleItemUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    
+    try {
+      const formData = new FormData();
+      
+      // Add all form fields
+      formData.append('title', updateFormData.title);
+      formData.append('description', updateFormData.description);
+      formData.append('category', updateFormData.category);
+      formData.append('location', updateFormData.location);
+      formData.append('date', updateFormData.date.toISOString());
+      formData.append('additionalDetails', updateFormData.additionalDetails || '');
+      formData.append('isHighValue', updateFormData.isHighValue ? 'true' : 'false');
+      
+      // Get image file if selected
+      const imageInput = document.getElementById('itemImage') as HTMLInputElement;
+      if (imageInput && imageInput.files && imageInput.files[0]) {
+        formData.append('image', imageInput.files[0]);
+      }
+      
+      const response = await fetch(`http://localhost:5000/api/items/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update item');
+      }
+      
+      toast({
+        title: "Item Updated",
+        description: "Your item has been successfully updated.",
+      });
+      
+      setIsUpdateDialogOpen(false);
+      // Refresh item details
+      fetchItemDetail();
+    } catch (err) {
+      console.error('Error updating item:', err);
+      toast({
+        title: "Error",
+        description: "Failed to update item. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -165,6 +271,7 @@ const ItemDetail = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({ 
           text: commentText,
@@ -229,6 +336,11 @@ const ItemDetail = () => {
     return Math.floor(seconds) + " seconds ago";
   };
 
+  // Check if user is the owner of the item or an admin
+  const canEdit = isAuthenticated && item && (
+    (item.user && user?.id === item.user._id) || isAdmin
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -271,9 +383,9 @@ const ItemDetail = () => {
         {/* Back Navigation */}
         <div className="mb-6">
           <Button variant="ghost" asChild className="flex items-center gap-1 px-2">
-            <Link to={item.status === 'lost' ? '/lost-items' : '/found-items'}>
+            <Link to={item.type === 'lost' ? '/lost-items' : '/found-items'}>
               <ChevronLeft className="h-4 w-4" />
-              Back to {item.status === 'lost' ? 'Lost' : 'Found'} Items
+              Back to {item.type === 'lost' ? 'Lost' : 'Found'} Items
             </Link>
           </Button>
         </div>
@@ -284,7 +396,7 @@ const ItemDetail = () => {
           <div className="lg:col-span-1">
             <div className="rounded-lg overflow-hidden border border-border bg-card h-[300px] sm:h-[400px] mb-4">
               <img 
-                src={`http://localhost:5000/${item.image}`} 
+                src={item.imageUrl ? `http://localhost:5000${item.imageUrl}` : '/placeholder.svg'} 
                 alt={item.title} 
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -295,6 +407,12 @@ const ItemDetail = () => {
             </div>
             
             <div className="flex justify-between gap-2 mb-6">
+              {canEdit && (
+                <Button variant="outline" onClick={() => setIsUpdateDialogOpen(true)} className="flex-1">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Update
+                </Button>
+              )}
               <Button variant="outline" onClick={() => toast({
                 title: "Share",
                 description: "Sharing functionality coming soon!",
@@ -316,13 +434,17 @@ const ItemDetail = () => {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Item Status</h3>
                 <Badge 
-                  className={`${item.status === 'lost' ? 'bg-destructive text-destructive-foreground' : 'bg-green-500 text-white'} uppercase`}
+                  className={`${item.status === 'pending' && item.type === 'lost' ? 'bg-destructive text-destructive-foreground' 
+                    : item.status === 'pending' && item.type === 'found' ? 'bg-green-500 text-white'
+                    : item.status === 'claimed' ? 'bg-amber-500 text-white'
+                    : item.status === 'resolved' ? 'bg-blue-500 text-white'
+                    : 'bg-gray-500 text-white'} uppercase`}
                 >
                   {item.status}
                 </Badge>
               </div>
               
-              {item.status === 'lost' ? (
+              {item.type === 'lost' ? (
                 <p className="text-sm text-muted-foreground">
                   This item has been reported as lost and is currently being looked for. If you've found it, please claim below.
                 </p>
@@ -330,6 +452,14 @@ const ItemDetail = () => {
                 <p className="text-sm text-muted-foreground">
                   This item has been found and is waiting to be claimed. If it's yours, please claim below.
                 </p>
+              )}
+              
+              {item.updatedAt && item.updatedAt !== item.createdAt && (
+                <div className="mt-3 pt-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground">
+                    Last updated: {formatDate(item.updatedAt)}
+                  </p>
+                </div>
               )}
             </div>
             
@@ -342,7 +472,7 @@ const ItemDetail = () => {
                   <div>
                     <p className="font-medium text-sm">Reported By</p>
                     <p className="text-muted-foreground text-sm">
-                      {item.reportedBy?.name || "Anonymous"}
+                      {item.user?.name || "Anonymous"}
                     </p>
                   </div>
                 </div>
@@ -351,7 +481,7 @@ const ItemDetail = () => {
                   <div>
                     <p className="font-medium text-sm">Contact Method</p>
                     <p className="text-muted-foreground text-sm">
-                      {item.contactMethod || "Through platform only"}
+                      {item.contactMethod || (item.user?.email ? `Email: ${item.user.email}` : "Through platform only")}
                     </p>
                   </div>
                 </div>
@@ -369,6 +499,9 @@ const ItemDetail = () => {
                   </Badge>
                 )}
                 <Badge variant="outline">{item.category}</Badge>
+                <Badge variant={item.type === 'lost' ? 'destructive' : 'default'}>
+                  {item.type.toUpperCase()}
+                </Badge>
               </div>
               
               <h1 className="text-3xl font-bold mb-2">{item.title}</h1>
@@ -381,7 +514,7 @@ const ItemDetail = () => {
                 
                 <div className="flex items-center text-muted-foreground">
                   <Clock className="h-4 w-4 mr-1 text-primary/70" />
-                  <span>{formatDate(item.createdAt)}</span>
+                  <span>{formatDate(item.date || item.createdAt)}</span>
                 </div>
                 
                 <div className="flex items-center text-muted-foreground">
@@ -398,11 +531,11 @@ const ItemDetail = () => {
                 {item.description}
               </p>
               
-              {item.identifyingFeatures && (
+              {item.additionalDetails && (
                 <>
-                  <h3 className="font-semibold mb-2">Identifying Features</h3>
+                  <h3 className="font-semibold mb-2">Additional Details</h3>
                   <p className="text-muted-foreground">
-                    {item.identifyingFeatures}
+                    {item.additionalDetails}
                   </p>
                 </>
               )}
@@ -410,71 +543,210 @@ const ItemDetail = () => {
             
             {/* Claim Button */}
             <div>
-              <Dialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full py-6" size="lg">
-                    {item.status === 'lost' ? (
-                      <>
-                        <CheckCircle className="mr-2 h-5 w-5" />
-                        I've Found This Item
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="mr-2 h-5 w-5" />
-                        This Item Belongs to Me
-                      </>
-                    )}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {item.status === 'lost' ? "Report Found Item" : "Claim This Item"}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {item.status === 'lost' 
-                        ? "Please provide details about how you found this item." 
-                        : "Please provide proof that this item belongs to you."}
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <form onSubmit={handleClaimSubmit}>
-                    <div className="space-y-4 py-4">
-                      {item.status === 'found' && (
+              {item.status === 'pending' && isAuthenticated && (
+                <Dialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full py-6" size="lg">
+                      {item.type === 'lost' ? (
+                        <>
+                          <CheckCircle className="mr-2 h-5 w-5" />
+                          I've Found This Item
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-5 w-5" />
+                          This Item Belongs to Me
+                        </>
+                      )}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {item.type === 'lost' ? "Report Found Item" : "Claim This Item"}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {item.type === 'lost' 
+                          ? "Please provide details about how you found this item." 
+                          : "Please provide proof that this item belongs to you."}
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <form onSubmit={handleClaimSubmit}>
+                      <div className="space-y-4 py-4">
+                        {item.type === 'found' && (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">
+                              Describe a unique feature of this item that only the owner would know
+                            </label>
+                            <Textarea 
+                              name="proofDetails"
+                              placeholder="E.g., serial number, distinctive marks, contents..." 
+                              className="min-h-[100px]"
+                              required
+                            />
+                          </div>
+                        )}
+                        
                         <div className="space-y-2">
                           <label className="text-sm font-medium">
-                            Describe a unique feature of this item that only the owner would know
+                            {item.type === 'lost' 
+                              ? "Where and when did you find it?" 
+                              : "When and where did you lose it?"}
                           </label>
                           <Textarea 
-                            name="proofDetails"
-                            placeholder="E.g., serial number, distinctive marks, contents..." 
+                            name="description"
+                            placeholder="Please be as specific as possible..." 
                             className="min-h-[100px]"
                             required
                           />
                         </div>
-                      )}
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Your Contact Information</label>
+                          <Input 
+                            name="contactInfo"
+                            placeholder="Email or phone number" 
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      <DialogFooter>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setIsClaimDialogOpen(false)}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={submitting}>
+                          {submitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Submit
+                            </>
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+              
+              {/* Update Item Dialog */}
+              <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Update Item Details</DialogTitle>
+                    <DialogDescription>
+                      Make changes to your {item.type} item report to add more details or corrections.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <form onSubmit={handleItemUpdate}>
+                    <div className="space-y-4 py-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Title</label>
+                          <Input 
+                            value={updateFormData.title}
+                            onChange={(e) => setUpdateFormData({...updateFormData, title: e.target.value})}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Category</label>
+                          <Input 
+                            value={updateFormData.category}
+                            onChange={(e) => setUpdateFormData({...updateFormData, category: e.target.value})}
+                            required
+                          />
+                        </div>
+                      </div>
                       
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">
-                          {item.status === 'lost' 
-                            ? "Where and when did you find it?" 
-                            : "When and where did you lose it?"}
-                        </label>
+                        <label className="text-sm font-medium">Description</label>
                         <Textarea 
-                          name="description"
-                          placeholder="Please be as specific as possible..." 
+                          value={updateFormData.description}
+                          onChange={(e) => setUpdateFormData({...updateFormData, description: e.target.value})}
                           className="min-h-[100px]"
                           required
                         />
                       </div>
                       
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Location</label>
+                          <Input 
+                            value={updateFormData.location}
+                            onChange={(e) => setUpdateFormData({...updateFormData, location: e.target.value})}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Date</label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start">
+                                <Calendar className="mr-2 h-4 w-4" />
+                                {updateFormData.date ? format(updateFormData.date, "PPP") : "Select date"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={updateFormData.date}
+                                onSelect={(date) => date && setUpdateFormData({...updateFormData, date})}
+                                initialFocus
+                                className={cn("p-3 pointer-events-auto")}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                      
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Your Contact Information</label>
-                        <Input 
-                          name="contactInfo"
-                          placeholder="Email or phone number" 
-                          required
+                        <label className="text-sm font-medium">Additional Details</label>
+                        <Textarea 
+                          value={updateFormData.additionalDetails || ""}
+                          onChange={(e) => setUpdateFormData({...updateFormData, additionalDetails: e.target.value})}
+                          placeholder="Any other details that might help identify the item..."
+                          className="min-h-[100px]"
                         />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Image</label>
+                        <Input 
+                          id="itemImage"
+                          type="file"
+                          accept="image/*"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Upload a new image only if you want to replace the existing one.
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="isHighValue"
+                          checked={updateFormData.isHighValue}
+                          onChange={(e) => setUpdateFormData({...updateFormData, isHighValue: e.target.checked})}
+                          className="form-checkbox h-4 w-4"
+                        />
+                        <label htmlFor="isHighValue" className="text-sm font-medium">
+                          This is a high value item
+                        </label>
                       </div>
                     </div>
                     
@@ -482,7 +754,7 @@ const ItemDetail = () => {
                       <Button 
                         type="button" 
                         variant="outline" 
-                        onClick={() => setIsClaimDialogOpen(false)}
+                        onClick={() => setIsUpdateDialogOpen(false)}
                       >
                         <XCircle className="mr-2 h-4 w-4" />
                         Cancel
@@ -491,12 +763,12 @@ const ItemDetail = () => {
                         {submitting ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Submitting...
+                            Updating...
                           </>
                         ) : (
                           <>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Submit
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Changes
                           </>
                         )}
                       </Button>
@@ -543,7 +815,7 @@ const ItemDetail = () => {
                 <div className="flex justify-end">
                   <Button 
                     onClick={handleComment} 
-                    disabled={!commentText.trim() || submitting}
+                    disabled={!commentText.trim() || submitting || !isAuthenticated}
                   >
                     {submitting ? (
                       <>
@@ -558,6 +830,11 @@ const ItemDetail = () => {
                     )}
                   </Button>
                 </div>
+                {!isAuthenticated && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    You need to <Link to="/login" className="text-primary">log in</Link> to post comments.
+                  </p>
+                )}
               </div>
             </div>
           </div>

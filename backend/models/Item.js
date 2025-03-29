@@ -59,10 +59,26 @@ const itemSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  additionalDetails: {
+    type: String,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
+});
+
+// Update the updatedAt timestamp on modification
+itemSchema.pre('save', function(next) {
+  if (this.isModified() && !this.isNew) {
+    this.updatedAt = Date.now();
+  }
+  next();
 });
 
 module.exports = mongoose.model('Item', itemSchema);

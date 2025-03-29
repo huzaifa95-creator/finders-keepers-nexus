@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,7 +72,9 @@ const AddItemForm = () => {
       // Add all form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'date') {
-          formDataToSend.append(key, value.toISOString());
+          // Fix: Ensure we're working with a Date object before calling toISOString
+          const dateValue = value instanceof Date ? value.toISOString() : String(value);
+          formDataToSend.append(key, dateValue);
         } else if (key === 'isHighValue') {
           formDataToSend.append(key, value ? 'true' : 'false');
         } else {

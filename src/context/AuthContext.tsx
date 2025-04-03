@@ -66,6 +66,11 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       
+      // Store token if available
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      
       return Promise.resolve();
     } catch (error) {
       return Promise.reject(error);
@@ -104,6 +109,11 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       
+      // Store token if available
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      
       return Promise.resolve();
     } catch (error) {
       return Promise.reject(error);
@@ -115,6 +125,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   return (

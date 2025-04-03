@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -8,17 +9,215 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Search, MessageSquare, ThumbsUp, Calendar, Filter, PlusCircle, MapPin, Clock } from 'lucide-react';
+import { Search, MessageSquare, ThumbsUp, Calendar, Filter, PlusCircle, MapPin, Clock, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/context/AuthContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+interface Post {
+  _id: string;
+  title: string;
+  content: string;
+  user: {
+    _id: string;
+    name: string;
+  };
+  likes: string[];
+  comments: {
+    _id: string;
+    text: string;
+    user: {
+      _id: string;
+      name: string;
+    };
+    createdAt: string;
+  }[];
+  resolved: boolean;
+  createdAt: string;
+}
 
 const Community = () => {
   const { toast } = useToast();
-  
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [newPost, setNewPost] = useState({
+    title: "",
+    content: ""
+  });
+  const [activeTab, setActiveTab] = useState<string>("recent");
+
+  // Fetch posts with filters
+  const getPosts = async (filters: { search?: string, resolved?: boolean, userId?: string }) => {
+    let url = 'http://localhost:5000/api/community?';
+    
+    if (filters.search) {
+      url += `search=${encodeURIComponent(filters.search)}&`;
+    }
+    
+    if (filters.resolved !== undefined) {
+      url += `resolved=${filters.resolved}&`;
+    }
+    
+    if (filters.userId) {
+      url += `user=${filters.userId}&`;
+    }
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch posts');
+    }
+    
+    return response.json();
+  };
+
+  // Query for all posts
+  const { data: allPosts = [], isLoading, refetch } = useQuery({
+    queryKey: ['communityPosts', { search: searchTerm }],
+    queryFn: () => getPosts({ search: searchTerm }),
+  });
+
+  // Query for user posts (if authenticated)
+  const { data: userPosts = [] } = useQuery({
+    queryKey: ['userPosts', user?.id],
+    queryFn: () => getPosts({ userId: user?.id }),
+    enabled: isAuthenticated && activeTab === "my-posts",
+  });
+
+  // Query for popular posts (ones with most likes)
+  const { data: popularPosts = [] } = useQuery({
+    queryKey: ['popularPosts'],
+    queryFn: async () => {
+      const posts = await getPosts({});
+      return posts.sort((a: Post, b: Post) => b.likes.length - a.likes.length).slice(0, 10);
+    },
+    enabled: activeTab === "popular",
+  });
+
+  // Create new post mutation
+  const createPostMutation = useMutation({
+    mutationFn: async (postData: { title: string; content: string }) => {
+      const response = await fetch('http://localhost:5000/api/community', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(postData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create post');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['communityPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
+      toast({
+        title: "Success!",
+        description: "Your post has been created.",
+      });
+      setIsOpen(false);
+      setNewPost({ title: "", content: "" });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create post",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Like post mutation
+  const likePostMutation = useMutation({
+    mutationFn: async (postId: string) => {
+      const response = await fetch(`http://localhost:5000/api/community/${postId}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to like post');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['communityPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['popularPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to like post",
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleNewPost = () => {
-    toast({
-      title: "Coming Soon",
-      description: "This feature will be available soon!",
-    });
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to create a post",
+      });
+      navigate('/login');
+      return;
+    }
+    
+    setIsOpen(true);
+  };
+  
+  const handleSubmitPost = () => {
+    if (!newPost.title.trim() || !newPost.content.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both title and content",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    createPostMutation.mutate(newPost);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleSearch = () => {
+    refetch();
+  };
+  
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
+
+  // Get the appropriate posts based on active tab
+  const displayPosts = () => {
+    switch(activeTab) {
+      case "popular":
+        return popularPosts;
+      case "my-posts":
+        return userPosts;
+      case "recent":
+      default:
+        return allPosts;
+    }
   };
   
   return (
@@ -49,8 +248,11 @@ const Community = () => {
                     <Input 
                       placeholder="Search community posts..." 
                       className="flex-1"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                     />
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" onClick={handleSearch}>
                       <Search className="h-5 w-5" />
                     </Button>
                     <Button variant="ghost" size="icon">
@@ -60,7 +262,7 @@ const Community = () => {
                 </CardContent>
               </Card>
               
-              <Tabs defaultValue="recent">
+              <Tabs defaultValue="recent" value={activeTab} onValueChange={handleTabChange}>
                 <div className="flex justify-between items-center mb-4">
                   <TabsList>
                     <TabsTrigger value="recent">Recent</TabsTrigger>
@@ -70,23 +272,82 @@ const Community = () => {
                 </div>
                 
                 <TabsContent value="recent" className="space-y-4 mt-2">
-                  {communityPosts.map((post) => (
-                    <CommunityPost key={post.id} post={post} />
-                  ))}
+                  {isLoading ? (
+                    <div className="flex justify-center items-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : displayPosts().length > 0 ? (
+                    displayPosts().map((post: Post) => (
+                      <CommunityPost 
+                        key={post._id} 
+                        post={post} 
+                        currentUser={user}
+                        isAuthenticated={isAuthenticated}
+                        onLike={() => likePostMutation.mutate(post._id)}
+                      />
+                    ))
+                  ) : (
+                    <div className="p-12 text-center text-muted-foreground">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p>No posts found</p>
+                    </div>
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="popular" className="space-y-4 mt-2">
-                  <div className="p-12 text-center text-muted-foreground">
-                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>Login to view popular posts</p>
-                  </div>
+                  {!isAuthenticated ? (
+                    <div className="p-12 text-center text-muted-foreground">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p>Login to view popular posts</p>
+                    </div>
+                  ) : isLoading ? (
+                    <div className="flex justify-center items-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : displayPosts().length > 0 ? (
+                    displayPosts().map((post: Post) => (
+                      <CommunityPost 
+                        key={post._id} 
+                        post={post} 
+                        currentUser={user}
+                        isAuthenticated={isAuthenticated}
+                        onLike={() => likePostMutation.mutate(post._id)}
+                      />
+                    ))
+                  ) : (
+                    <div className="p-12 text-center text-muted-foreground">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p>No popular posts found</p>
+                    </div>
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="my-posts" className="space-y-4 mt-2">
-                  <div className="p-12 text-center text-muted-foreground">
-                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>Login to view your posts</p>
-                  </div>
+                  {!isAuthenticated ? (
+                    <div className="p-12 text-center text-muted-foreground">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p>Login to view your posts</p>
+                    </div>
+                  ) : isLoading ? (
+                    <div className="flex justify-center items-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : displayPosts().length > 0 ? (
+                    displayPosts().map((post: Post) => (
+                      <CommunityPost 
+                        key={post._id} 
+                        post={post} 
+                        currentUser={user}
+                        isAuthenticated={isAuthenticated}
+                        onLike={() => likePostMutation.mutate(post._id)}
+                      />
+                    ))
+                  ) : (
+                    <div className="p-12 text-center text-muted-foreground">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p>You haven't created any posts yet</p>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>
@@ -151,45 +412,104 @@ const Community = () => {
         </div>
       </main>
       
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Create New Post</DialogTitle>
+            <DialogDescription>
+              Share your question or information with the community
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="title" className="text-sm font-medium">Title</label>
+              <Input
+                id="title"
+                placeholder="Title of your post"
+                value={newPost.title}
+                onChange={(e) => setNewPost({...newPost, title: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="content" className="text-sm font-medium">Content</label>
+              <Textarea
+                id="content"
+                placeholder="Share your question or information..."
+                className="min-h-[150px]"
+                value={newPost.content}
+                onChange={(e) => setNewPost({...newPost, content: e.target.value})}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmitPost} disabled={createPostMutation.isPending}>
+              {createPostMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Post
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <Footer />
     </div>
   );
 };
 
 interface CommunityPostProps {
-  post: {
-    id: number;
-    title: string;
-    content: string;
-    author: {
-      name: string;
-      avatar: string;
-    };
-    category: string;
-    location: string;
-    timestamp: string;
-    comments: number;
-    likes: number;
-    isResolved: boolean;
-  };
+  post: Post;
+  currentUser: { id: string; name: string } | null;
+  isAuthenticated: boolean;
+  onLike: () => void;
 }
 
-const CommunityPost = ({ post }: CommunityPostProps) => {
+const CommunityPost = ({ post, currentUser, isAuthenticated, onLike }: CommunityPostProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [timeAgo, setTimeAgo] = useState("");
+  
+  useEffect(() => {
+    // Calculate time ago
+    const getTimeAgo = (date: string) => {
+      const now = new Date();
+      const postDate = new Date(date);
+      const diffMs = now.getTime() - postDate.getTime();
+      const diffMins = Math.round(diffMs / 60000);
+      
+      if (diffMins < 60) {
+        return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+      } else if (diffMins < 24 * 60) {
+        const hours = Math.floor(diffMins / 60);
+        return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+      } else {
+        const days = Math.floor(diffMins / (60 * 24));
+        return `${days} day${days !== 1 ? 's' : ''} ago`;
+      }
+    };
+    
+    setTimeAgo(getTimeAgo(post.createdAt));
+  }, [post.createdAt]);
   
   const handleLike = () => {
-    toast({
-      title: "Coming Soon",
-      description: "This feature will be available soon!",
-    });
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to like posts",
+      });
+      return;
+    }
+    onLike();
   };
   
   const handleComment = () => {
-    toast({
-      title: "Coming Soon",
-      description: "This feature will be available soon!",
-    });
+    navigate(`/community/${post._id}`);
   };
+  
+  const handleViewDetails = () => {
+    navigate(`/community/${post._id}`);
+  };
+  
+  const isLikedByCurrentUser = currentUser ? post.likes.includes(currentUser.id) : false;
   
   return (
     <Card className="hover:border-primary/20 transition-all duration-300">
@@ -197,113 +517,52 @@ const CommunityPost = ({ post }: CommunityPostProps) => {
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-2">
             <Avatar>
-              <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
-              <AvatarImage src={post.author.avatar} />
+              <AvatarFallback>{post.user.name.charAt(0)}</AvatarFallback>
+              <AvatarImage src="" />
             </Avatar>
             <div>
-              <div className="font-medium">{post.author.name}</div>
+              <div className="font-medium">{post.user.name}</div>
               <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" /> {post.timestamp}
+                <Clock className="h-3 w-3" /> {timeAgo}
               </div>
             </div>
           </div>
           
-          <Badge variant={post.isResolved ? "default" : "outline"}>
-            {post.isResolved ? "Resolved" : "Open"}
+          <Badge variant={post.resolved ? "default" : "outline"}>
+            {post.resolved ? "Resolved" : "Open"}
           </Badge>
         </div>
         
         <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
-        <p className="text-muted-foreground mb-4">{post.content}</p>
-        
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Badge variant="secondary">{post.category}</Badge>
-          <div className="flex items-center text-xs text-muted-foreground gap-1">
-            <MapPin className="h-3 w-3" />
-            {post.location}
-          </div>
-        </div>
+        <p className="text-muted-foreground mb-4">
+          {post.content.length > 200 
+            ? `${post.content.substring(0, 200)}...` 
+            : post.content}
+        </p>
         
         <div className="flex justify-between items-center pt-4 border-t border-border/50">
-          <Button variant="ghost" size="sm" onClick={handleLike}>
+          <Button 
+            variant={isLikedByCurrentUser ? "default" : "ghost"} 
+            size="sm" 
+            onClick={handleLike}
+            className={isLikedByCurrentUser ? "bg-primary/20 hover:bg-primary/30" : ""}
+          >
             <ThumbsUp className="mr-1 h-4 w-4" />
-            {post.likes}
+            {post.likes.length}
           </Button>
           
           <Button variant="ghost" size="sm" onClick={handleComment}>
             <MessageSquare className="mr-1 h-4 w-4" />
-            {post.comments}
+            {post.comments.length}
           </Button>
           
-          <Button variant="outline" size="sm">View Details</Button>
+          <Button variant="outline" size="sm" onClick={handleViewDetails}>
+            View Details
+          </Button>
         </div>
       </CardContent>
     </Card>
   );
 };
-
-// Mock community posts
-const communityPosts = [
-  {
-    id: 1,
-    title: "Lost my Casio FX-991ES calculator in CS-5 Lab",
-    content: "I was in the CS-5 Lab in A-Block yesterday between 1-3 PM for my Programming Fundamentals lab. I think I left my Casio scientific calculator there. It has my name (Usman) written on the back. If anyone found it, please let me know!",
-    author: {
-      name: "Usman Ali",
-      avatar: ""
-    },
-    category: "Electronics",
-    location: "A-Block, CS-5 Lab",
-    timestamp: "Yesterday at 6:45 PM",
-    comments: 3,
-    likes: 5,
-    isResolved: false
-  },
-  {
-    id: 2,
-    title: "Found a black backpack in the cafeteria",
-    content: "I found a black Adidas backpack in the cafeteria near the drink counter around 1:30 PM today. It has some books and a pencil case inside. I've handed it to the cafeteria staff. The owner can collect it from there.",
-    author: {
-      name: "Sara Khan",
-      avatar: ""
-    },
-    category: "Bags",
-    location: "Cafeteria",
-    timestamp: "Today at 2:15 PM",
-    comments: 1,
-    likes: 8,
-    isResolved: true
-  },
-  {
-    id: 3,
-    title: "Lost my student ID card near library",
-    content: "I lost my FAST-NUCES student ID card (FA-21-BCS-123) somewhere near the library entrance. I need it urgently for tomorrow's exam. Please contact me if you find it!",
-    author: {
-      name: "Ahmed Raza",
-      avatar: ""
-    },
-    category: "Documents",
-    location: "Library",
-    timestamp: "Today at 11:20 AM",
-    comments: 5,
-    likes: 12,
-    isResolved: false
-  },
-  {
-    id: 4,
-    title: "Left my notes in the B-Block",
-    content: "I left my Database Systems notes (green spiral notebook) in Room B-4 after the lecture today. If anyone found it, please let me know. I need it for the upcoming quiz!",
-    author: {
-      name: "Zainab Fatima",
-      avatar: ""
-    },
-    category: "Books/Notes",
-    location: "B-Block, Room B-4",
-    timestamp: "Yesterday at 3:30 PM",
-    comments: 0,
-    likes: 2,
-    isResolved: false
-  }
-];
 
 export default Community;

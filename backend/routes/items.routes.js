@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { check } = require('express-validator');
 const itemsController = require('../controllers/items.controller');
-const { auth, admin, optionalAuth } = require('../middleware/auth');
+const { auth, admin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
 // @route   GET /api/items
@@ -18,7 +18,7 @@ router.get('/:id', itemsController.getItemById);
 
 // @route   POST /api/items
 // @desc    Create a new item
-// @access  Public (optionally authenticated)
+// @access  Public (was Private)
 router.post(
   '/',
   [
@@ -37,7 +37,7 @@ router.post(
 
 // @route   PUT /api/items/:id
 // @desc    Update an item
-// @access  Private (owner or admin)
+// @access  Private
 router.put(
   '/:id',
   [
@@ -49,7 +49,7 @@ router.put(
 
 // @route   DELETE /api/items/:id
 // @desc    Delete an item
-// @access  Private (owner or admin)
+// @access  Private
 router.delete('/:id', auth, itemsController.deleteItem);
 
 // @route   POST /api/items/:id/claim

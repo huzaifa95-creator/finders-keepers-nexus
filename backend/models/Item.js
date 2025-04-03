@@ -51,6 +51,15 @@ const itemSchema = new mongoose.Schema({
     ref: 'User',
     default: null
   },
+  claimDetails: {
+    description: String,
+    contactInfo: String,
+    proofDetails: String,
+    claimedAt: {
+      type: Date,
+      default: Date.now
+    }
+  },
   isHighValue: {
     type: Boolean,
     default: false
@@ -62,7 +71,17 @@ const itemSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
+});
+
+// Pre-save middleware to update the updatedAt field
+itemSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
 module.exports = mongoose.model('Item', itemSchema);

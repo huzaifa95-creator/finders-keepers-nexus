@@ -39,17 +39,24 @@ interface Item {
   title: string;
   category: string;
   description: string;
-  image: string;
+  imageUrl: string;
   location: string;
   createdAt: string;
-  status: 'lost' | 'found';
+  status: string;
+  type: string;
   isHighValue: boolean;
   contactMethod?: string;
-  reportedBy?: {
+  user?: {
+    name: string;
+    _id: string;
+    email: string;
+  };
+  claimedBy?: {
     name: string;
     _id: string;
   };
   identifyingFeatures?: string;
+  date: string;
 }
 
 interface Comment {
@@ -65,7 +72,7 @@ interface Comment {
 const ItemDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const navigate = useNavigate();
   const [item, setItem] = useState<Item | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -92,11 +99,16 @@ const ItemDetail = () => {
         setItem(data);
         
         // Fetch comments for this item
-        const commentsResponse = await fetch(`http://localhost:5000/api/items/${id}/comments`);
-        
-        if (commentsResponse.ok) {
-          const commentsData = await commentsResponse.json();
-          setComments(commentsData);
+        try {
+          const commentsResponse = await fetch(`http://localhost:5000/api/items/${id}/comments`);
+          
+          if (commentsResponse.ok) {
+            const commentsData = await commentsResponse.json();
+            setComments(commentsData);
+          }
+        } catch (err) {
+          console.log('Comments endpoint not available');
+          // Don't set an error for comments as it's not critical
         }
         
         setError(null);
@@ -114,13 +126,22 @@ const ItemDetail = () => {
   const handleClaimSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
+    if (!user || !token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to claim this item.",
+        variant: "destructive",
+      });
+      navigate('/login');
+      return;
+    }
+    
     // Get form data
     const formData = new FormData(event.currentTarget);
     const claimData = {
       description: formData.get('description'),
       contactInfo: formData.get('contactInfo'),
-      proofDetails: formData.get('proofDetails'),
-      userId: user?.id
+      proofDetails: formData.get('proofDetails')
     };
     
     setSubmitting(true);
@@ -130,24 +151,29 @@ const ItemDetail = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(claimData),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to submit claim');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit claim');
       }
+      
+      const updatedItem = await response.json();
+      setItem(updatedItem);
       
       toast({
         title: "Claim Submitted",
-        description: "Your claim has been submitted. You will be notified when it's reviewed.",
+        description: "Your claim has been submitted successfully.",
       });
       setIsClaimDialogOpen(false);
     } catch (err) {
       console.error('Error submitting claim:', err);
       toast({
         title: "Error",
-        description: "Failed to submit claim. Please try again.",
+        description: err instanceof Error ? err.message : "Failed to submit claim. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -158,6 +184,16 @@ const ItemDetail = () => {
   const handleComment = async () => {
     if (!commentText.trim() || !id) return;
     
+    if (!user || !token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to post a comment.",
+        variant: "destructive",
+      });
+      navigate('/login');
+      return;
+    }
+    
     setSubmitting(true);
     
     try {
@@ -165,10 +201,10 @@ const ItemDetail = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
-          text: commentText,
-          userId: user?.id
+          text: commentText
         }),
       });
       
@@ -271,9 +307,9 @@ const ItemDetail = () => {
         {/* Back Navigation */}
         <div className="mb-6">
           <Button variant="ghost" asChild className="flex items-center gap-1 px-2">
-            <Link to={item.status === 'lost' ? '/lost-items' : '/found-items'}>
+            <Link to={item.type === 'lost' ? '/lost-items' : '/found-items'}>
               <ChevronLeft className="h-4 w-4" />
-              Back to {item.status === 'lost' ? 'Lost' : 'Found'} Items
+              Back to {item.type === 'lost' ? 'Lost' : 'Found'} Items
             </Link>
           </Button>
         </div>
@@ -284,7 +320,7 @@ const ItemDetail = () => {
           <div className="lg:col-span-1">
             <div className="rounded-lg overflow-hidden border border-border bg-card h-[300px] sm:h-[400px] mb-4">
               <img 
-                src={`http://localhost:5000/${item.image}`} 
+                src={`http://localhost:5000${item.imageUrl}`} 
                 alt={item.title} 
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -316,21 +352,38 @@ const ItemDetail = () => {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Item Status</h3>
                 <Badge 
-                  className={`${item.status === 'lost' ? 'bg-destructive text-destructive-foreground' : 'bg-green-500 text-white'} uppercase`}
+                  className={`${item.type === 'lost' ? 'bg-destructive text-destructive-foreground' : 'bg-green-500 text-white'} uppercase`}
+                >
+                  {item.type}
+                </Badge>
+              </div>
+              
+              <div className="mt-2">
+                <Badge 
+                  className={`
+                    ${item.status === 'pending' ? 'bg-yellow-500' : 
+                      item.status === 'claimed' ? 'bg-blue-500' : 
+                      item.status === 'resolved' ? 'bg-green-500' : 
+                      'bg-red-500'} 
+                    text-white uppercase`}
                 >
                   {item.status}
                 </Badge>
               </div>
               
-              {item.status === 'lost' ? (
-                <p className="text-sm text-muted-foreground">
-                  This item has been reported as lost and is currently being looked for. If you've found it, please claim below.
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  This item has been found and is waiting to be claimed. If it's yours, please claim below.
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground mt-3">
+                {item.status === 'pending' ? (
+                  item.type === 'lost' ? 
+                    "This item has been reported as lost and is currently being looked for." : 
+                    "This item has been found and is waiting to be claimed."
+                ) : item.status === 'claimed' ? (
+                  "This item has been claimed and is awaiting verification."
+                ) : item.status === 'resolved' ? (
+                  "This item has been successfully returned to its owner."
+                ) : (
+                  "The claim for this item has been rejected."
+                )}
+              </p>
             </div>
             
             {/* Contact Information */}
@@ -342,7 +395,7 @@ const ItemDetail = () => {
                   <div>
                     <p className="font-medium text-sm">Reported By</p>
                     <p className="text-muted-foreground text-sm">
-                      {item.reportedBy?.name || "Anonymous"}
+                      {item.user?.name || "Anonymous"}
                     </p>
                   </div>
                 </div>
@@ -381,7 +434,7 @@ const ItemDetail = () => {
                 
                 <div className="flex items-center text-muted-foreground">
                   <Clock className="h-4 w-4 mr-1 text-primary/70" />
-                  <span>{formatDate(item.createdAt)}</span>
+                  <span>{formatDate(item.date)}</span>
                 </div>
                 
                 <div className="flex items-center text-muted-foreground">
@@ -408,110 +461,112 @@ const ItemDetail = () => {
               )}
             </div>
             
-            {/* Claim Button */}
-            <div>
-              <Dialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full py-6" size="lg">
-                    {item.status === 'lost' ? (
-                      <>
-                        <CheckCircle className="mr-2 h-5 w-5" />
-                        I've Found This Item
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="mr-2 h-5 w-5" />
-                        This Item Belongs to Me
-                      </>
-                    )}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {item.status === 'lost' ? "Report Found Item" : "Claim This Item"}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {item.status === 'lost' 
-                        ? "Please provide details about how you found this item." 
-                        : "Please provide proof that this item belongs to you."}
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <form onSubmit={handleClaimSubmit}>
-                    <div className="space-y-4 py-4">
-                      {item.status === 'found' && (
+            {/* Claim Button - Only show if item is pending */}
+            {item.status === 'pending' && (
+              <div>
+                <Dialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full py-6 bg-purple-600 hover:bg-purple-700" size="lg">
+                      {item.type === 'lost' ? (
+                        <>
+                          <CheckCircle className="mr-2 h-5 w-5" />
+                          I've Found This Item
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-5 w-5" />
+                          This Item Belongs to Me
+                        </>
+                      )}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {item.type === 'lost' ? "Report Found Item" : "Claim This Item"}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {item.type === 'lost' 
+                          ? "Please provide details about how you found this item." 
+                          : "Please provide proof that this item belongs to you."}
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <form onSubmit={handleClaimSubmit}>
+                      <div className="space-y-4 py-4">
+                        {item.type === 'found' && (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">
+                              Describe a unique feature of this item that only the owner would know
+                            </label>
+                            <Textarea 
+                              name="proofDetails"
+                              placeholder="E.g., serial number, distinctive marks, contents..." 
+                              className="min-h-[100px]"
+                              required
+                            />
+                          </div>
+                        )}
+                        
                         <div className="space-y-2">
                           <label className="text-sm font-medium">
-                            Describe a unique feature of this item that only the owner would know
+                            {item.type === 'lost' 
+                              ? "Where and when did you find it?" 
+                              : "When and where did you lose it?"}
                           </label>
                           <Textarea 
-                            name="proofDetails"
-                            placeholder="E.g., serial number, distinctive marks, contents..." 
+                            name="description"
+                            placeholder="Please be as specific as possible..." 
                             className="min-h-[100px]"
                             required
                           />
                         </div>
-                      )}
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">
-                          {item.status === 'lost' 
-                            ? "Where and when did you find it?" 
-                            : "When and where did you lose it?"}
-                        </label>
-                        <Textarea 
-                          name="description"
-                          placeholder="Please be as specific as possible..." 
-                          className="min-h-[100px]"
-                          required
-                        />
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Your Contact Information</label>
+                          <Input 
+                            name="contactInfo"
+                            placeholder="Email or phone number" 
+                            required
+                          />
+                        </div>
                       </div>
                       
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Your Contact Information</label>
-                        <Input 
-                          name="contactInfo"
-                          placeholder="Email or phone number" 
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <DialogFooter>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setIsClaimDialogOpen(false)}
-                      >
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={submitting}>
-                        {submitting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Submit
-                          </>
-                        )}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
+                      <DialogFooter>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setIsClaimDialogOpen(false)}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={submitting}>
+                          {submitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Submit
+                            </>
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
             
             {/* Comments */}
             <div className="p-6 rounded-lg border border-border bg-card">
               <h2 className="text-xl font-semibold mb-4">Comments</h2>
               
               <div className="space-y-4 mb-6">
-                {comments.length > 0 ? (
+                {comments && comments.length > 0 ? (
                   comments.map((comment) => (
                     <div key={comment._id} className="flex gap-3">
                       <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
@@ -570,3 +625,4 @@ const ItemDetail = () => {
 };
 
 export default ItemDetail;
+

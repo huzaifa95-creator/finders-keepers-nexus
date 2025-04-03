@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth.routes');
 const itemsRoutes = require('./routes/items.routes');
 const userRoutes = require('./routes/user.routes');
 const communityRoutes = require('./routes/community.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 // Initialize express app
 const app = express();
@@ -28,6 +29,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/items', itemsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/users', notificationRoutes);
 
 // Base route
 app.get('/', (req, res) => {

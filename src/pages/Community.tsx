@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
@@ -40,7 +39,7 @@ interface Post {
 
 const Community = () => {
   const { toast } = useToast();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -51,7 +50,6 @@ const Community = () => {
   });
   const [activeTab, setActiveTab] = useState<string>("recent");
 
-  // Fetch posts with filters
   const getPosts = async (filters: { search?: string, resolved?: boolean, userId?: string }) => {
     let url = 'http://localhost:5000/api/community?';
     
@@ -76,20 +74,17 @@ const Community = () => {
     return response.json();
   };
 
-  // Query for all posts
   const { data: allPosts = [], isLoading, refetch } = useQuery({
     queryKey: ['communityPosts', { search: searchTerm }],
     queryFn: () => getPosts({ search: searchTerm }),
   });
 
-  // Query for user posts (if authenticated)
   const { data: userPosts = [] } = useQuery({
     queryKey: ['userPosts', user?.id],
     queryFn: () => getPosts({ userId: user?.id }),
     enabled: isAuthenticated && activeTab === "my-posts",
   });
 
-  // Query for popular posts (ones with most likes)
   const { data: popularPosts = [] } = useQuery({
     queryKey: ['popularPosts'],
     queryFn: async () => {
@@ -99,14 +94,13 @@ const Community = () => {
     enabled: activeTab === "popular",
   });
 
-  // Create new post mutation
   const createPostMutation = useMutation({
     mutationFn: async (postData: { title: string; content: string }) => {
       const response = await fetch('http://localhost:5000/api/community', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(postData)
       });
@@ -137,14 +131,13 @@ const Community = () => {
     }
   });
 
-  // Like post mutation
   const likePostMutation = useMutation({
     mutationFn: async (postId: string) => {
       const response = await fetch(`http://localhost:5000/api/community/${postId}/like`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -207,7 +200,6 @@ const Community = () => {
     setActiveTab(value);
   };
 
-  // Get the appropriate posts based on active tab
   const displayPosts = () => {
     switch(activeTab) {
       case "popular":
@@ -469,7 +461,6 @@ const CommunityPost = ({ post, currentUser, isAuthenticated, onLike }: Community
   const [timeAgo, setTimeAgo] = useState("");
   
   useEffect(() => {
-    // Calculate time ago
     const getTimeAgo = (date: string) => {
       const now = new Date();
       const postDate = new Date(date);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
@@ -82,7 +81,6 @@ const ItemDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   
-  // Fetch item data
   useEffect(() => {
     const fetchItemDetail = async () => {
       if (!id) return;
@@ -98,7 +96,6 @@ const ItemDetail = () => {
         const data = await response.json();
         setItem(data);
         
-        // Fetch comments for this item
         try {
           const commentsResponse = await fetch(`http://localhost:5000/api/items/${id}/comments`);
           
@@ -108,7 +105,6 @@ const ItemDetail = () => {
           }
         } catch (err) {
           console.log('Comments endpoint not available');
-          // Don't set an error for comments as it's not critical
         }
         
         setError(null);
@@ -136,7 +132,6 @@ const ItemDetail = () => {
       return;
     }
     
-    // Get form data
     const formData = new FormData(event.currentTarget);
     const claimData = {
       description: formData.get('description'),
@@ -232,7 +227,6 @@ const ItemDetail = () => {
     }
   };
 
-  // Format the date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -242,7 +236,6 @@ const ItemDetail = () => {
     });
   };
   
-  // Time ago format
   const timeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
@@ -304,7 +297,6 @@ const ItemDetail = () => {
       <Navigation />
       
       <main className="flex-grow container mx-auto px-4 py-8">
-        {/* Back Navigation */}
         <div className="mb-6">
           <Button variant="ghost" asChild className="flex items-center gap-1 px-2">
             <Link to={item.type === 'lost' ? '/lost-items' : '/found-items'}>
@@ -314,9 +306,7 @@ const ItemDetail = () => {
           </Button>
         </div>
         
-        {/* Item Details */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Image Column */}
           <div className="lg:col-span-1">
             <div className="rounded-lg overflow-hidden border border-border bg-card h-[300px] sm:h-[400px] mb-4">
               <img 
@@ -347,7 +337,6 @@ const ItemDetail = () => {
               </Button>
             </div>
             
-            {/* Status Card */}
             <div className="p-4 rounded-lg border border-border bg-card mb-6">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Item Status</h3>
@@ -386,7 +375,6 @@ const ItemDetail = () => {
               </p>
             </div>
             
-            {/* Contact Information */}
             <div className="p-4 rounded-lg border border-border bg-card">
               <h3 className="font-semibold mb-3">Contact Information</h3>
               <div className="space-y-2">
@@ -412,7 +400,6 @@ const ItemDetail = () => {
             </div>
           </div>
           
-          {/* Details Column */}
           <div className="lg:col-span-2 space-y-6">
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -444,7 +431,6 @@ const ItemDetail = () => {
               </div>
             </div>
             
-            {/* Description */}
             <div className="p-6 rounded-lg border border-border bg-card">
               <h2 className="text-xl font-semibold mb-4">Description</h2>
               <p className="text-muted-foreground mb-6">
@@ -461,7 +447,6 @@ const ItemDetail = () => {
               )}
             </div>
             
-            {/* Claim Button - Only show if item is pending */}
             {item.status === 'pending' && (
               <div>
                 <Dialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen}>
@@ -561,7 +546,6 @@ const ItemDetail = () => {
               </div>
             )}
             
-            {/* Comments */}
             <div className="p-6 rounded-lg border border-border bg-card">
               <h2 className="text-xl font-semibold mb-4">Comments</h2>
               
@@ -625,4 +609,3 @@ const ItemDetail = () => {
 };
 
 export default ItemDetail;
-

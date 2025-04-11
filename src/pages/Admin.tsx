@@ -190,8 +190,7 @@ const Admin = () => {
       setStatsData(prev => ({
         ...prev,
         claimsPending: prev.claimsPending - 1,
-        claimsResolved: action === 'approve' ? prev.claimsResolved + 1 : prev.claimsResolved,
-        resolvedItems: action === 'approve' ? prev.resolvedItems + 1 : prev.resolvedItems
+        claimsResolved: action === 'approve' ? prev.claimsResolved + 1 : prev.claimsResolved
       }));
       
     } catch (err) {

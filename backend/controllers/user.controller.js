@@ -171,54 +171,6 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// Admin only: Create new user
-exports.createUser = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  try {
-    const { name, email, password, role } = req.body;
-    
-    // Validate email domain for students
-    if (role === 'student' && !email.endsWith('@nu.edu.pk')) {
-      return res.status(400).json({ 
-        message: 'Student email must use the @nu.edu.pk domain' 
-      });
-    }
-
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-    
-    // Create new user
-    user = new User({
-      name,
-      email,
-      password,
-      role: role || 'student'
-    });
-    
-    await user.save();
-    
-    res.status(201).json({
-      message: 'User created successfully',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
 // Admin only: Delete user
 exports.deleteUser = async (req, res) => {
   try {
@@ -228,41 +180,9 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    await User.findByIdAndDelete(req.params.id);
+    await user.remove();
     
-    res.json({ message: 'User removed successfully' });
-  } catch (error) {
-    console.error(error);
-    if (error.kind === 'ObjectId') {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Admin only: Change user status (activate/deactivate)
-exports.changeUserStatus = async (req, res) => {
-  try {
-    const { status } = req.body;
-    
-    if (status !== 'active' && status !== 'inactive' && status !== 'suspended') {
-      return res.status(400).json({ message: 'Invalid status value' });
-    }
-    
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $set: { status } },
-      { new: true }
-    ).select('-password');
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    res.json({
-      message: `User status changed to ${status}`,
-      user
-    });
+    res.json({ message: 'User removed' });
   } catch (error) {
     console.error(error);
     if (error.kind === 'ObjectId') {

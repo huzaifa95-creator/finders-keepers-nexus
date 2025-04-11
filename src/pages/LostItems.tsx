@@ -24,7 +24,6 @@ interface Item {
   location: string;
   createdAt: string;
   type: 'lost' | 'found';
-  status: string;
   isHighValue: boolean;
 }
 
@@ -41,8 +40,7 @@ const LostItems = () => {
     const fetchItems = async () => {
       try {
         setLoading(true);
-        // Only fetch pending items (not claimed, not resolved)
-        const response = await fetch('http://localhost:5000/api/items?type=lost&status=pending');
+        const response = await fetch('http://localhost:5000/api/items?type=lost');
         
         if (!response.ok) {
           throw new Error('Failed to fetch lost items');

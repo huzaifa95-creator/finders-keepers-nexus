@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,74 +41,99 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
 
-interface User {
-  _id: string;
-  name: string;
-  email: string;
-  role: 'student' | 'admin' | 'staff';
-  status: 'active' | 'inactive' | 'suspended';
-  createdAt: string;
-  lastActive?: string;
-}
+// Mock users for the admin dashboard
+const mockUsers = [
+  {
+    id: '1',
+    name: 'John Doe',
+    email: 'k224567@nu.edu.pk',
+    role: 'student',
+    status: 'active',
+    dateRegistered: '12 Sep 2023',
+    lastActive: '2 hours ago'
+  },
+  {
+    id: '2',
+    name: 'Jane Smith',
+    email: 'k225678@nu.edu.pk',
+    role: 'student',
+    status: 'active',
+    dateRegistered: '15 Sep 2023',
+    lastActive: '1 day ago'
+  },
+  {
+    id: '3',
+    name: 'David Wilson',
+    email: 'david.wilson@nu.edu.pk',
+    role: 'staff',
+    status: 'active',
+    dateRegistered: '10 Aug 2023',
+    lastActive: '5 hours ago'
+  },
+  {
+    id: '4',
+    name: 'Sarah Ahmed',
+    email: 'k223456@nu.edu.pk',
+    role: 'student',
+    status: 'inactive',
+    dateRegistered: '5 Jun 2023',
+    lastActive: '2 months ago'
+  },
+  {
+    id: '5',
+    name: 'James Brown',
+    email: 'james.brown@nu.edu.pk',
+    role: 'admin',
+    status: 'active',
+    dateRegistered: '2 Jan 2023',
+    lastActive: '30 minutes ago'
+  },
+  {
+    id: '6',
+    name: 'Maria Garcia',
+    email: 'k227890@nu.edu.pk',
+    role: 'student',
+    status: 'active',
+    dateRegistered: '10 Oct 2023',
+    lastActive: '3 days ago'
+  },
+  {
+    id: '7',
+    name: 'Ahmed Khan',
+    email: 'ahmed.khan@nu.edu.pk',
+    role: 'staff',
+    status: 'active',
+    dateRegistered: '8 Apr 2023',
+    lastActive: '1 week ago'
+  },
+  {
+    id: '8',
+    name: 'Lisa Chen',
+    email: 'k229012@nu.edu.pk',
+    role: 'student',
+    status: 'suspended',
+    dateRegistered: '20 Mar 2023',
+    lastActive: '2 weeks ago'
+  }
+];
+
+type User = typeof mockUsers[0];
 
 const UserManagement = () => {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState(mockUsers);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState<User | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newUser, setNewUser] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'student',
-    status: 'active'
-  });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { token } = useAuth();
-
-  useEffect(() => {
-    fetchUsers();
-  }, [token]);
-
-  const fetchUsers = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('http://localhost:5000/api/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
-      
-      const data = await response.json();
-      setUsers(data);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load users. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -128,175 +153,57 @@ const UserManagement = () => {
     setIsEditing(true);
   };
 
-  const handleSaveUser = async () => {
+  const handleSaveUser = () => {
     if (!editedUser) return;
     
     setIsProcessing(true);
     
-    try {
-      const response = await fetch(`http://localhost:5000/api/users/${editedUser._id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: editedUser.name,
-          email: editedUser.email,
-          role: editedUser.role
-        })
-      });
+    // Simulate API call
+    setTimeout(() => {
+      const updatedUsers = users.map(user => 
+        user.id === editedUser.id ? editedUser : user
+      );
       
-      if (!response.ok) {
-        throw new Error('Failed to update user');
-      }
-      
-      const updatedUser = await response.json();
-      
-      setUsers(users.map(user => 
-        user._id === updatedUser._id ? updatedUser : user
-      ));
-      
+      setUsers(updatedUsers);
       setIsEditing(false);
       setSelectedUser(null);
       setEditedUser(null);
+      setIsProcessing(false);
       
       toast({
         title: "User Updated",
-        description: `${updatedUser.name}'s information has been updated.`,
+        description: `${editedUser.name}'s information has been updated.`,
       });
-    } catch (error) {
-      console.error('Error updating user:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update user. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    }, 1000);
   };
 
-  const handleCreateUser = async () => {
+  const handleDeleteUser = (userId: string) => {
     setIsProcessing(true);
     
-    try {
-      const response = await fetch('http://localhost:5000/api/users', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newUser)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create user');
-      }
-      
-      const data = await response.json();
-      
-      // Refresh user list
-      fetchUsers();
-      
-      // Reset form
-      setNewUser({
-        name: '',
-        email: '',
-        password: '',
-        role: 'student',
-        status: 'active'
-      });
-      
-      setIsCreating(false);
-      
-      toast({
-        title: "User Created",
-        description: `${data.user.name} has been successfully added.`,
-      });
-    } catch (error: any) {
-      console.error('Error creating user:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create user. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+    // Simulate API call
+    setTimeout(() => {
+      const updatedUsers = users.filter(user => user.id !== userId);
+      setUsers(updatedUsers);
       setIsProcessing(false);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    setIsProcessing(true);
-    
-    try {
-      const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete user');
-      }
-      
-      setUsers(users.filter(user => user._id !== userId));
       
       toast({
         title: "User Deleted",
         description: "The user has been successfully removed from the system.",
       });
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete user. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    }, 1000);
   };
 
-  const handleStatusChange = async (userId: string, newStatus: 'active' | 'inactive' | 'suspended') => {
-    setIsProcessing(true);
+  const handleStatusChange = (userId: string, newStatus: 'active' | 'inactive' | 'suspended') => {
+    const updatedUsers = users.map(user => 
+      user.id === userId ? {...user, status: newStatus} : user
+    );
     
-    try {
-      const response = await fetch(`http://localhost:5000/api/users/${userId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update user status');
-      }
-      
-      const data = await response.json();
-      
-      setUsers(users.map(user => 
-        user._id === userId ? {...user, status: newStatus} : user
-      ));
-      
-      toast({
-        title: "Status Updated",
-        description: `User status has been changed to ${newStatus}.`,
-      });
-    } catch (error) {
-      console.error('Error updating user status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update user status. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    setUsers(updatedUsers);
+    
+    toast({
+      title: "Status Updated",
+      description: `User status has been changed to ${newStatus}.`,
+    });
   };
 
   const filteredUsers = users.filter(user => {
@@ -336,35 +243,6 @@ const UserManagement = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
-
-  const getLastActive = (user: User) => {
-    if (user.lastActive) {
-      return formatDate(user.lastActive);
-    }
-    return 'Never';
-  };
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="pt-6 flex items-center justify-center" style={{ minHeight: "400px" }}>
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <p>Loading users...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -394,6 +272,7 @@ const UserManagement = () => {
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value="student">Student</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
@@ -421,13 +300,14 @@ const UserManagement = () => {
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Registered</TableHead>
+                  <TableHead>Last Active</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => (
-                    <TableRow key={user._id}>
+                    <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
@@ -436,8 +316,9 @@ const UserManagement = () => {
                           <span className="capitalize">{user.role}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
-                      <TableCell>{formatDate(user.createdAt)}</TableCell>
+                      <TableCell>{getStatusBadge(user.status)}</TableCell>
+                      <TableCell>{user.dateRegistered}</TableCell>
+                      <TableCell>{user.lastActive}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button 
@@ -453,8 +334,7 @@ const UserManagement = () => {
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              onClick={() => handleStatusChange(user._id, 'suspended')}
-                              disabled={isProcessing}
+                              onClick={() => handleStatusChange(user.id, 'suspended')}
                             >
                               <X className="h-4 w-4 text-red-500" />
                               <span className="sr-only">Suspend</span>
@@ -463,8 +343,7 @@ const UserManagement = () => {
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              onClick={() => handleStatusChange(user._id, 'active')}
-                              disabled={isProcessing}
+                              onClick={() => handleStatusChange(user.id, 'active')}
                             >
                               <Check className="h-4 w-4 text-green-500" />
                               <span className="sr-only">Activate</span>
@@ -486,12 +365,10 @@ const UserManagement = () => {
                                 </DialogDescription>
                               </DialogHeader>
                               <DialogFooter>
-                                <DialogClose asChild>
-                                  <Button variant="outline">Cancel</Button>
-                                </DialogClose>
+                                <Button variant="outline" onClick={() => {}}>Cancel</Button>
                                 <Button 
                                   variant="destructive" 
-                                  onClick={() => handleDeleteUser(user._id)}
+                                  onClick={() => handleDeleteUser(user.id)}
                                   disabled={isProcessing}
                                 >
                                   {isProcessing ? (
@@ -522,7 +399,7 @@ const UserManagement = () => {
           </ScrollArea>
           
           <div className="flex justify-end">
-            <Dialog open={isCreating} onOpenChange={setIsCreating}>
+            <Dialog>
               <DialogTrigger asChild>
                 <Button>
                   <UserCog className="mr-2 h-4 w-4" />
@@ -541,52 +418,25 @@ const UserManagement = () => {
                     <Label htmlFor="name" className="text-right">
                       Name
                     </Label>
-                    <Input 
-                      id="name" 
-                      className="col-span-3"
-                      value={newUser.name}
-                      onChange={(e) => setNewUser({...newUser, name: e.target.value})}
-                      required
-                    />
+                    <Input id="name" className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="email" className="text-right">
                       Email
                     </Label>
-                    <Input 
-                      id="email" 
-                      className="col-span-3"
-                      value={newUser.email}
-                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="password" className="text-right">
-                      Password
-                    </Label>
-                    <Input 
-                      id="password" 
-                      type="password"
-                      className="col-span-3"
-                      value={newUser.password}
-                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                      required
-                    />
+                    <Input id="email" className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="role" className="text-right">
                       Role
                     </Label>
-                    <Select 
-                      value={newUser.role} 
-                      onValueChange={(value: 'student' | 'admin') => setNewUser({...newUser, role: value})}
-                    >
+                    <Select defaultValue="student">
                       <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="student">Student</SelectItem>
+                        <SelectItem value="staff">Staff</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>
@@ -596,31 +446,13 @@ const UserManagement = () => {
                       Status
                     </Label>
                     <div className="flex items-center gap-2 col-span-3">
-                      <Switch 
-                        id="status" 
-                        checked={newUser.status === 'active'}
-                        onCheckedChange={(checked) => 
-                          setNewUser({...newUser, status: checked ? 'active' : 'inactive'})
-                        }
-                      />
+                      <Switch id="status" defaultChecked />
                       <Label htmlFor="status">Active</Label>
                     </div>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button 
-                    onClick={handleCreateUser}
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      'Create User'
-                    )}
-                  </Button>
+                  <Button type="submit">Create User</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -666,13 +498,14 @@ const UserManagement = () => {
                   </Label>
                   <Select 
                     value={editedUser.role}
-                    onValueChange={(value: 'student' | 'admin') => setEditedUser({...editedUser, role: value})}
+                    onValueChange={(value) => setEditedUser({...editedUser, role: value})}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="staff">Staff</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
@@ -682,10 +515,8 @@ const UserManagement = () => {
                     Status
                   </Label>
                   <Select 
-                    value={editedUser.status || 'active'}
-                    onValueChange={(value: 'active' | 'inactive' | 'suspended') => 
-                      setEditedUser({...editedUser, status: value})
-                    }
+                    value={editedUser.status}
+                    onValueChange={(value: any) => setEditedUser({...editedUser, status: value})}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Select a status" />

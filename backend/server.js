@@ -4,7 +4,6 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const path = require('path');
-const fs = require('fs');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
@@ -29,12 +28,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Create uploads directory if it doesn't exist
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
 // Static files directory for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -43,7 +36,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/items', itemsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/community', communityRoutes);
-app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Base route
@@ -73,5 +66,3 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'development' ? err.message : {}
   });
 });
-
-module.exports = app;

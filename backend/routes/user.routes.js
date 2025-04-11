@@ -10,24 +10,6 @@ const { auth, admin } = require('../middleware/auth');
 // @access  Private (Admin only)
 router.get('/', [auth, admin], userController.getAllUsers);
 
-// @route   POST /api/users
-// @desc    Create a new user (admin only)
-// @access  Private (Admin only)
-router.post(
-  '/',
-  [
-    auth,
-    admin,
-    [
-      check('name', 'Name is required').not().isEmpty(),
-      check('email', 'Please include a valid email').isEmail(),
-      check('password', 'Password must be at least 6 characters').isLength({ min: 6 }),
-      check('role', 'Role must be either student or admin').optional().isIn(['student', 'admin'])
-    ]
-  ],
-  userController.createUser
-);
-
 // @route   GET /api/users/notifications
 // @desc    Get user notifications
 // @access  Private
@@ -76,34 +58,7 @@ router.get('/:id', [auth, admin], userController.getUserById);
 // @route   PUT /api/users/:id
 // @desc    Update user (admin only)
 // @access  Private (Admin only)
-router.put(
-  '/:id',
-  [
-    auth,
-    admin,
-    [
-      check('name', 'Name is required').optional().not().isEmpty(),
-      check('email', 'Please include a valid email').optional().isEmail(),
-      check('role', 'Role must be either student or admin').optional().isIn(['student', 'admin'])
-    ]
-  ],
-  userController.updateUser
-);
-
-// @route   PUT /api/users/:id/status
-// @desc    Change user status (admin only)
-// @access  Private (Admin only)
-router.put(
-  '/:id/status',
-  [
-    auth,
-    admin,
-    [
-      check('status', 'Status is required').isIn(['active', 'inactive', 'suspended'])
-    ]
-  ],
-  userController.changeUserStatus
-);
+router.put('/:id', [auth, admin], userController.updateUser);
 
 // @route   DELETE /api/users/:id
 // @desc    Delete user (admin only)

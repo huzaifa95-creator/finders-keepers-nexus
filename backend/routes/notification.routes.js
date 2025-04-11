@@ -5,7 +5,7 @@ const notificationController = require('../controllers/notification.controller')
 const { auth } = require('../middleware/auth');
 
 // Get user notifications
-router.get('/:userId/notifications', auth, notificationController.getUserNotifications);
+router.get('/:userId/notifications', notificationController.getUserNotifications);
 
 // Mark notification as read
 router.put('/:userId/notifications/:notificationId/mark-read', auth, notificationController.markNotificationAsRead);

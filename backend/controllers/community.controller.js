@@ -6,7 +6,7 @@ const { validationResult } = require('express-validator');
 // Get all posts with filtering
 exports.getPosts = async (req, res) => {
   try {
-    const { search, resolved, user } = req.query;
+    const { search, resolved } = req.query;
     
     let query = {};
     
@@ -17,12 +17,8 @@ exports.getPosts = async (req, res) => {
       ];
     }
     
-    if (resolved !== undefined) {
+    if (resolved) {
       query.resolved = resolved === 'true';
-    }
-    
-    if (user) {
-      query.user = user;
     }
     
     const posts = await Post.find(query)
@@ -134,7 +130,7 @@ exports.deletePost = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
     
-    await post.deleteOne();
+    await post.remove();
     
     res.json({ message: 'Post removed' });
   } catch (error) {
@@ -167,10 +163,8 @@ exports.likePost = async (req, res) => {
     // Create notification if not the post owner
     if (post.user.toString() !== req.user.id) {
       const notification = new Notification({
-        recipient: post.user,
-        sender: req.user.id,
-        type: 'like',
-        message: `${req.user.name} liked your post: "${post.title.substring(0, 30)}${post.title.length > 30 ? '...' : ''}"`,
+        user: post.user,
+        message: 'Someone liked your post',
         relatedPost: post._id
       });
       
@@ -242,21 +236,15 @@ exports.addComment = async (req, res) => {
     // Create notification if not the post owner
     if (post.user.toString() !== req.user.id) {
       const notification = new Notification({
-        recipient: post.user,
-        sender: req.user.id,
-        type: 'comment',
-        message: `${req.user.name} commented on your post: "${post.title.substring(0, 30)}${post.title.length > 30 ? '...' : ''}"`,
+        user: post.user,
+        message: 'Someone commented on your post',
         relatedPost: post._id
       });
       
       await notification.save();
     }
     
-    // Populate the user info in the returned comments
-    const populatedPost = await Post.findById(post._id)
-      .populate('comments.user', 'name');
-    
-    res.json(populatedPost.comments);
+    res.json(post.comments);
   } catch (error) {
     console.error(error);
     if (error.kind === 'ObjectId') {

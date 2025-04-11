@@ -57,16 +57,6 @@ router.delete('/:id', auth, itemsController.deleteItem);
 // @access  Private
 router.post('/:id/claim', auth, itemsController.claimItem);
 
-// @route   POST /api/items/:id/comments
-// @desc    Add a comment to an item
-// @access  Private
-router.post('/:id/comments', auth, itemsController.addComment);
-
-// @route   GET /api/items/:id/comments
-// @desc    Get comments for an item
-// @access  Public
-router.get('/:id/comments', itemsController.getItemComments);
-
 // @route   POST /api/items/:id/review
 // @desc    Admin approve/reject item claim
 // @access  Private (Admin only)

@@ -12,7 +12,6 @@ import FoundItems from "./pages/FoundItems";
 import ItemDetail from "./pages/ItemDetail";
 import Report from "./pages/Report";
 import Community from "./pages/Community";
-import CommunityPostDetail from "./pages/CommunityPostDetail";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -37,7 +36,6 @@ const App = () => (
               <Route path="/items/:id" element={<ItemDetail />} />
               <Route path="/report" element={<Report />} />
               <Route path="/community" element={<Community />} />
-              <Route path="/community/:id" element={<CommunityPostDetail />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/admin" element={<Admin />} />

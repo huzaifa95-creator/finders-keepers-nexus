@@ -2,35 +2,28 @@
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
-  recipient: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
-  },
-  sender: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  type: {
-    type: String,
-    enum: ['item_claim', 'claim_approved', 'claim_rejected', 'comment', 'like', 'system'],
     required: true
   },
   message: {
     type: String,
     required: true
   },
-  read: {
-    type: Boolean,
-    default: false
-  },
   relatedItem: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Item'
+    ref: 'Item',
+    default: null
   },
   relatedPost: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Post'
+    ref: 'Post',
+    default: null
+  },
+  read: {
+    type: Boolean,
+    default: false
   },
   createdAt: {
     type: Date,

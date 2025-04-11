@@ -1,7 +1,6 @@
 
 const Item = require('../models/Item');
 const Notification = require('../models/Notification');
-const Comment = require('../models/Comment');
 const { validationResult } = require('express-validator');
 const fs = require('fs');
 const path = require('path');
@@ -204,26 +203,10 @@ exports.claimItem = async (req, res) => {
       });
     }
     
-    console.log('Claiming item with data:', req.body);
-    
     // Update item status
     item.status = 'claimed';
-    item.claimedBy = req.user.id;
-    
-    // Store claim details if provided
-    if (req.body.description) {
-      item.claimDetails = item.claimDetails || {};
-      item.claimDetails.description = req.body.description;
-    }
-    
-    if (req.body.contactInfo) {
-      item.claimDetails = item.claimDetails || {};
-      item.claimDetails.contactInfo = req.body.contactInfo;
-    }
-    
-    if (req.body.proofDetails) {
-      item.claimDetails = item.claimDetails || {};
-      item.claimDetails.proofDetails = req.body.proofDetails;
+    if (req.user) {
+      item.claimedBy = req.user.id;
     }
     
     await item.save();
@@ -245,65 +228,6 @@ exports.claimItem = async (req, res) => {
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ message: 'Item not found' });
     }
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Add a comment to an item
-exports.addComment = async (req, res) => {
-  try {
-    const item = await Item.findById(req.params.id);
-    
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
-    
-    const { text } = req.body;
-    
-    if (!text || text.trim() === '') {
-      return res.status(400).json({ message: 'Comment text is required' });
-    }
-    
-    // Create a new comment
-    const comment = new Comment({
-      item: req.params.id,
-      user: req.user.id,
-      text
-    });
-    
-    await comment.save();
-    
-    // Populate user information
-    await comment.populate('user', 'name');
-    
-    // Send notification to the item owner if the commenter is not the owner
-    if (item.user && req.user.id !== item.user.toString()) {
-      const notification = new Notification({
-        user: item.user,
-        message: `Someone commented on your ${item.type} item: ${item.title}`,
-        relatedItem: item._id
-      });
-      
-      await notification.save();
-    }
-    
-    res.status(201).json(comment);
-  } catch (error) {
-    console.error('Error adding comment:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Get comments for an item
-exports.getItemComments = async (req, res) => {
-  try {
-    const comments = await Comment.find({ item: req.params.id })
-      .sort({ createdAt: -1 })
-      .populate('user', 'name');
-    
-    res.json(comments);
-  } catch (error) {
-    console.error('Error fetching comments:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

@@ -18,7 +18,6 @@ interface AuthContextType {
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
-  token: string | null; // Add token property
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,21 +25,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [token, setToken] = useState<string | null>(null); // Add token state
   
   // Check if user is already logged in
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
     
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
-    
-    if (storedToken) {
-      setToken(storedToken);
-    }
-    
     setIsLoading(false);
   }, []);
 
@@ -73,12 +65,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-      
-      // Store token if available
-      if (data.token) {
-        setToken(data.token);
-        localStorage.setItem('token', data.token);
-      }
       
       return Promise.resolve();
     } catch (error) {
@@ -118,12 +104,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       
-      // Store token if available
-      if (data.token) {
-        setToken(data.token);
-        localStorage.setItem('token', data.token);
-      }
-      
       return Promise.resolve();
     } catch (error) {
       return Promise.reject(error);
@@ -134,9 +114,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   const logout = () => {
     setUser(null);
-    setToken(null);
     localStorage.removeItem('user');
-    localStorage.removeItem('token');
   };
 
   return (
@@ -149,7 +127,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
         signup,
         logout,
         isAdmin: user?.role === 'admin',
-        token, // Provide token in context
       }}
     >
       {children}

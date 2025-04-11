@@ -31,40 +31,65 @@ const NotificationCenter = () => {
   const unreadCount = notifications.filter(n => !n.read).length;
   
   useEffect(() => {
-    if (isAuthenticated && user?.id && open) {
+    if (isAuthenticated && user?.id) {
       fetchNotifications();
     }
-  }, [isAuthenticated, user?.id, open]);
+  }, [isAuthenticated, user?.id]);
   
   const fetchNotifications = async () => {
     if (!user?.id) return;
     
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      // If we're in development, use dummy notification data
+      if (process.env.NODE_ENV === 'development') {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Dummy notifications
+        const dummyNotifications: Notification[] = [
+          {
+            _id: '1',
+            title: 'Your Lost Item Claimed',
+            description: 'Someone has claimed your lost laptop',
+            timestamp: new Date().toISOString(),
+            read: false,
+            type: 'claim',
+            link: '/items/1'
+          },
+          {
+            _id: '2',
+            title: 'Comment on Your Post',
+            description: 'Someone commented on your community post',
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+            read: true,
+            type: 'comment',
+            link: '/community/1'
+          },
+          {
+            _id: '3',
+            title: 'System Notification',
+            description: 'Welcome to the FAST-NUCES Lost & Found Portal!',
+            timestamp: new Date(Date.now() - 86400000).toISOString(),
+            read: true,
+            type: 'system'
+          }
+        ];
+        
+        setNotifications(dummyNotifications);
+        return;
+      }
+      
+      const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications`);
       
       if (response.ok) {
         const data = await response.json();
         setNotifications(data);
       } else {
-        console.error('Failed to fetch notifications:', await response.text());
-        toast({
-          title: "Error",
-          description: "Failed to load notifications",
-          variant: "destructive"
-        });
+        console.error('Failed to fetch notifications');
       }
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load notifications",
-        variant: "destructive"
-      });
+      console.error('Failed to fetch notifications');
     } finally {
       setLoading(false);
     }
@@ -74,11 +99,25 @@ const NotificationCenter = () => {
     if (!user?.id || unreadCount === 0) return;
     
     try {
+      // In development mode, just update local state
+      if (process.env.NODE_ENV === 'development') {
+        const updatedNotifications = notifications.map(notification => ({
+          ...notification,
+          read: true
+        }));
+        
+        setNotifications(updatedNotifications);
+        
+        toast({
+          title: "All notifications marked as read",
+          description: `${unreadCount} notification${unreadCount !== 1 ? 's' : ''} marked as read.`
+        });
+        
+        return;
+      }
+      
       const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications/mark-all-read`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        method: 'PUT'
       });
       
       if (response.ok) {
@@ -93,9 +132,6 @@ const NotificationCenter = () => {
           title: "All notifications marked as read",
           description: `${unreadCount} notification${unreadCount !== 1 ? 's' : ''} marked as read.`
         });
-      } else {
-        console.error('Error response:', await response.text());
-        throw new Error('Failed to mark notifications as read');
       }
     } catch (error) {
       console.error('Error marking notifications as read:', error);
@@ -111,11 +147,18 @@ const NotificationCenter = () => {
     if (!user?.id) return;
     
     try {
+      // In development mode, just update local state
+      if (process.env.NODE_ENV === 'development') {
+        const updatedNotifications = notifications.map(notification => 
+          notification._id === id ? { ...notification, read: true } : notification
+        );
+        
+        setNotifications(updatedNotifications);
+        return;
+      }
+      
       const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications/${id}/mark-read`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        method: 'PUT'
       });
       
       if (response.ok) {
@@ -124,17 +167,9 @@ const NotificationCenter = () => {
         );
         
         setNotifications(updatedNotifications);
-      } else {
-        console.error('Error response:', await response.text());
-        throw new Error('Failed to mark notification as read');
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
-      toast({
-        title: "Error",
-        description: "Failed to mark notification as read",
-        variant: "destructive"
-      });
     }
   };
   
@@ -142,11 +177,21 @@ const NotificationCenter = () => {
     if (!user?.id) return;
     
     try {
+      // In development mode, just update local state
+      if (process.env.NODE_ENV === 'development') {
+        setNotifications([]);
+        setOpen(false);
+        
+        toast({
+          title: "Notifications cleared",
+          description: "All notifications have been removed."
+        });
+        
+        return;
+      }
+      
       const response = await fetch(`http://localhost:5000/api/users/${user.id}/notifications/clear-all`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        method: 'DELETE'
       });
       
       if (response.ok) {
@@ -157,9 +202,6 @@ const NotificationCenter = () => {
           title: "Notifications cleared",
           description: "All notifications have been removed."
         });
-      } else {
-        console.error('Error response:', await response.text());
-        throw new Error('Failed to clear notifications');
       }
     } catch (error) {
       console.error('Error clearing notifications:', error);

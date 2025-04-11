@@ -11,6 +11,7 @@ const itemsRoutes = require('./routes/items.routes');
 const userRoutes = require('./routes/user.routes');
 const communityRoutes = require('./routes/community.routes');
 const notificationRoutes = require('./routes/notification.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 // Initialize express app
 const app = express();
@@ -36,7 +37,7 @@ app.use('/api/items', itemsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/users', notificationRoutes);
-app.use('/api/admin', require('./routes/admin.routes'));
+app.use('/api/admin', adminRoutes);
 
 // Base route
 app.get('/', (req, res) => {

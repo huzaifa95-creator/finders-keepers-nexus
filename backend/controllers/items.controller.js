@@ -1,4 +1,3 @@
-
 const Item = require('../models/Item');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
@@ -252,6 +251,42 @@ exports.claimItem = async (req, res) => {
   }
 };
 
+// Get pending claims for admin
+exports.getPendingClaims = async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    
+    const items = await Item.find({ status: 'claimed' })
+      .populate('user', 'name email')
+      .populate('claimedBy', 'name email')
+      .sort({ 'claim.date': -1 });
+      
+    // Transform to a more suitable format for the frontend
+    const claims = items.map(item => ({
+      id: item._id,
+      itemId: item._id,
+      itemName: item.title,
+      claimantName: item.claimedBy ? item.claimedBy.name : 'Anonymous',
+      claimantEmail: item.claimedBy ? item.claimedBy.email : 'N/A',
+      dateSubmitted: item.claim ? item.claim.date.toISOString().split('T')[0] : 'Unknown',
+      status: item.status,
+      description: item.claim ? item.claim.description : '',
+      contactInfo: item.claim ? item.claim.contactInfo : '',
+      proofDetails: item.claim ? item.claim.proofDetails : '',
+      itemType: item.type
+    }));
+    
+    res.json(claims);
+    
+  } catch (error) {
+    console.error('Error fetching pending claims:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Admin review item claim (approve/reject)
 exports.reviewItemClaim = async (req, res) => {
   try {
@@ -319,42 +354,6 @@ exports.reviewItemClaim = async (req, res) => {
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ message: 'Item not found' });
     }
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Get pending claims for admin
-exports.getPendingClaims = async (req, res) => {
-  try {
-    // Check if user is admin
-    if (req.user && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-    
-    const items = await Item.find({ status: 'claimed' })
-      .populate('user', 'name email')
-      .populate('claimedBy', 'name email')
-      .sort({ 'claim.date': -1 });
-      
-    // Transform to a more suitable format for the frontend
-    const claims = items.map(item => ({
-      id: item._id,
-      itemId: item._id,
-      itemName: item.title,
-      claimantName: item.claimedBy ? item.claimedBy.name : 'Anonymous',
-      claimantEmail: item.claimedBy ? item.claimedBy.email : 'N/A',
-      dateSubmitted: item.claim ? item.claim.date.toISOString().split('T')[0] : 'Unknown',
-      status: item.status,
-      description: item.claim ? item.claim.description : '',
-      contactInfo: item.claim ? item.claim.contactInfo : '',
-      proofDetails: item.claim ? item.claim.proofDetails : '',
-      itemType: item.type
-    }));
-    
-    res.json(claims);
-    
-  } catch (error) {
-    console.error('Error fetching pending claims:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

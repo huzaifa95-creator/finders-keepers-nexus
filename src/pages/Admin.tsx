@@ -7,6 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { 
   ListChecks, 
   ShieldAlert, 
   Users, 
@@ -36,6 +44,9 @@ interface Claim {
   dateSubmitted: string;
   status: string;
   description: string;
+  contactInfo: string;
+  proofDetails: string;
+  itemType: string;
 }
 
 interface HighValueItem {
@@ -58,7 +69,7 @@ interface StatsData {
 }
 
 const Admin = () => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, token } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [processingClaimId, setProcessingClaimId] = useState<string | null>(null);
@@ -101,21 +112,33 @@ const Admin = () => {
       
       try {
         // Fetch claims
-        const claimsResponse = await fetch('http://localhost:5000/api/admin/claims');
+        const claimsResponse = await fetch('http://localhost:5000/api/admin/claims', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (claimsResponse.ok) {
           const claimsData = await claimsResponse.json();
           setClaims(claimsData);
         }
 
         // Fetch high value items
-        const highValueResponse = await fetch('http://localhost:5000/api/admin/high-value-items');
+        const highValueResponse = await fetch('http://localhost:5000/api/admin/high-value-items', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (highValueResponse.ok) {
           const highValueData = await highValueResponse.json();
           setHighValueItems(highValueData);
         }
 
         // Fetch stats
-        const statsResponse = await fetch('http://localhost:5000/api/admin/stats');
+        const statsResponse = await fetch('http://localhost:5000/api/admin/stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setStatsData(statsData);
@@ -133,7 +156,7 @@ const Admin = () => {
     };
 
     fetchAdminData();
-  }, [isAuthenticated, isAdmin, toast]);
+  }, [isAuthenticated, isAdmin, toast, token]);
 
   const handleViewItem = (itemId: string) => {
     navigate(`/items/${itemId}`);
@@ -145,6 +168,10 @@ const Admin = () => {
     try {
       const response = await fetch(`http://localhost:5000/api/admin/claims/${claimId}/${action}`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.ok) {
@@ -156,12 +183,16 @@ const Admin = () => {
         description: `The claim has been ${action === 'approve' ? 'approved' : 'rejected'} successfully.`,
       });
       
-      // Update claims list
-      setClaims(claims.map(claim => 
-        claim.id === claimId 
-          ? { ...claim, status: action === 'approve' ? 'approved' : 'rejected' } 
-          : claim
-      ));
+      // Remove the claim from the list
+      setClaims(claims.filter(claim => claim.id !== claimId));
+      
+      // Update stats
+      setStatsData(prev => ({
+        ...prev,
+        claimsPending: prev.claimsPending - 1,
+        claimsResolved: action === 'approve' ? prev.claimsResolved + 1 : prev.claimsResolved
+      }));
+      
     } catch (err) {
       console.error(`Error ${action}ing claim:`, err);
       toast({
@@ -292,80 +323,156 @@ const Admin = () => {
               <CardContent>
                 {claims.length > 0 ? (
                   <div className="space-y-4">
-                    {claims.map((claim) => (
-                      <div 
-                        key={claim.id}
-                        className="p-4 border border-border rounded-lg bg-card/50 hover:bg-card/80 transition-colors"
-                      >
-                        <div className="flex flex-col md:flex-row justify-between mb-2">
-                          <div>
-                            <h3 className="text-lg font-medium">{claim.itemName}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Claimed by: {claim.claimantName} ({claim.claimantEmail})
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item Name</TableHead>
+                          <TableHead>Claimant</TableHead>
+                          <TableHead>Item Type</TableHead>
+                          <TableHead>Date Submitted</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {claims.map((claim) => (
+                          <TableRow key={claim.id}>
+                            <TableCell className="font-medium">{claim.itemName}</TableCell>
+                            <TableCell>{claim.claimantName}<br/><span className="text-xs text-muted-foreground">{claim.claimantEmail}</span></TableCell>
+                            <TableCell>
+                              <Badge
+                                className={`${claim.itemType === 'lost' ? 'bg-red-500' : 'bg-green-500'} text-white uppercase`}
+                              >
+                                {claim.itemType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{claim.dateSubmitted}</TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleViewItem(claim.itemId)}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="default" 
+                                  className="bg-green-500 hover:bg-green-600 text-white"
+                                  disabled={processingClaimId === claim.id}
+                                  onClick={() => handleProcessClaim(claim.id, 'approve')}
+                                >
+                                  {processingClaimId === claim.id ? (
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                  )}
+                                  Approve
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  disabled={processingClaimId === claim.id}
+                                  onClick={() => handleProcessClaim(claim.id, 'reject')}
+                                >
+                                  {processingClaimId === claim.id ? (
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  ) : (
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                  )}
+                                  Reject
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <div className="mt-4">
+                      {claims.map((claim) => (
+                        <div 
+                          key={claim.id}
+                          className="p-4 border border-border rounded-lg bg-card/50 hover:bg-card/80 transition-colors mb-4"
+                        >
+                          <div className="flex flex-col md:flex-row justify-between mb-2">
+                            <div>
+                              <h3 className="text-lg font-medium">{claim.itemName}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                Claimed by: {claim.claimantName} ({claim.claimantEmail})
+                              </p>
+                            </div>
+                            <div className="md:text-right mt-2 md:mt-0">
+                              <p className="text-sm text-muted-foreground">
+                                Submitted: {claim.dateSubmitted}
+                              </p>
+                              <Badge 
+                                className={`${claim.itemType === 'lost' ? 'bg-red-500' : 'bg-green-500'} text-white uppercase`}
+                              >
+                                {claim.itemType}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 mb-4">
+                            <div>
+                              <h4 className="text-sm font-semibold mb-1">Claim Description:</h4>
+                              <p className="text-sm text-muted-foreground bg-muted p-2 rounded-md min-h-[60px]">
+                                {claim.description || "No description provided"}
+                              </p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold mb-1">Proof Details:</h4>
+                              <p className="text-sm text-muted-foreground bg-muted p-2 rounded-md min-h-[60px]">
+                                {claim.proofDetails || "No proof details provided"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mb-4">
+                            <h4 className="text-sm font-semibold mb-1">Contact Information:</h4>
+                            <p className="text-sm text-muted-foreground bg-muted p-2 rounded-md">
+                              {claim.contactInfo || "No contact information provided"}
                             </p>
                           </div>
-                          <div className="md:text-right mt-2 md:mt-0">
-                            <p className="text-sm text-muted-foreground">
-                              Submitted: {claim.dateSubmitted}
-                            </p>
-                            <Badge 
-                              className={`
-                                ${claim.status === 'pending' ? 'bg-amber-500 text-white' : ''}
-                                ${claim.status === 'approved' ? 'bg-green-500 text-white' : ''}
-                                ${claim.status === 'rejected' ? 'bg-destructive text-destructive-foreground' : ''}
-                                uppercase
-                              `}
-                            >
-                              {claim.status}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <p className="text-sm text-muted-foreground mb-4">
-                          <strong>Claim Details:</strong> {claim.description}
-                        </p>
-                        
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleViewItem(claim.itemId)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Item
-                          </Button>
                           
-                          {claim.status === 'pending' && (
-                            <>
-                              <Button 
-                                size="sm" 
-                                variant="default" 
-                                className="bg-green-500 hover:bg-green-600 text-white"
-                                disabled={processingClaimId === claim.id}
-                                onClick={() => handleProcessClaim(claim.id, 'approve')}
-                              >
-                                {processingClaimId === claim.id ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                )}
-                                Approve
-                              </Button>
-                              
-                              <Button 
-                                size="sm" 
-                                variant="destructive"
-                                disabled={processingClaimId === claim.id}
-                                onClick={() => handleProcessClaim(claim.id, 'reject')}
-                              >
-                                {processingClaimId === claim.id ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                )}
-                                Reject
-                              </Button>
-                            </>
-                          )}
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleViewItem(claim.itemId)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Item
+                            </Button>
+                            
+                            <Button 
+                              size="sm" 
+                              variant="default" 
+                              className="bg-green-500 hover:bg-green-600 text-white"
+                              disabled={processingClaimId === claim.id}
+                              onClick={() => handleProcessClaim(claim.id, 'approve')}
+                            >
+                              {processingClaimId === claim.id ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                              )}
+                              Approve
+                            </Button>
+                            
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              disabled={processingClaimId === claim.id}
+                              onClick={() => handleProcessClaim(claim.id, 'reject')}
+                            >
+                              {processingClaimId === claim.id ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <XCircle className="h-4 w-4 mr-2" />
+                              )}
+                              Reject
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-8">

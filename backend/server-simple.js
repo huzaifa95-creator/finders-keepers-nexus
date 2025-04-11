@@ -41,6 +41,7 @@ app.use('/api/auth', require('./routes/simplified-auth.routes'));
 app.use('/api/items', require('./routes/items.routes'));
 app.use('/api/community', require('./routes/community.routes'));
 app.use('/api/users', require('./routes/notification.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
 
 // Simple test route
 app.get('/api/test', (req, res) => {

@@ -20,12 +20,19 @@ exports.getUserNotifications = async (req, res) => {
     // Transform notifications to frontend format
     const formattedNotifications = notifications.map(notification => ({
       _id: notification._id,
-      title: notification.relatedItem ? `Activity on your ${notification.relatedItem.type} item` : 'System Notification',
+      title: notification.relatedItem ? 
+        (notification.type === 'claim' ? 
+          'Claim Status Update' : 
+          `Activity on your ${notification.relatedItem.type} item`
+        ) : 
+        (notification.relatedPost ? 'Community Activity' : 'System Notification'),
       description: notification.message,
       timestamp: notification.createdAt,
       read: notification.read,
-      type: notification.relatedItem ? (notification.relatedItem.type === 'lost' ? 'claim' : 'claim') : 'system',
-      link: notification.relatedItem ? `/items/${notification.relatedItem._id}` : notification.relatedPost ? `/community/${notification.relatedPost._id}` : '/'
+      type: notification.type || 'system',
+      link: notification.relatedItem ? 
+        `/items/${notification.relatedItem._id}` : 
+        (notification.relatedPost ? `/community/${notification.relatedPost._id}` : '/')
     }));
     
     res.json(formattedNotifications);
@@ -85,4 +92,29 @@ exports.clearAllNotifications = async (req, res) => {
     console.error('Error clearing notifications:', error);
     res.status(500).json({ message: 'Server error' });
   }
+};
+
+// Create a notification (internal function)
+exports.createNotification = async (userId, message, itemId = null, postId = null, type = 'system') => {
+  try {
+    const notification = new Notification({
+      user: userId,
+      message,
+      relatedItem: itemId,
+      relatedPost: postId,
+      type,
+      read: false
+    });
+    
+    await notification.save();
+    return notification;
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    return null;
+  }
+};
+
+// Create a claim notification
+exports.createClaimNotification = async (userId, message, itemId) => {
+  return this.createNotification(userId, message, itemId, null, 'claim');
 };

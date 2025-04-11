@@ -21,6 +21,11 @@ const notificationSchema = new mongoose.Schema({
     ref: 'Post',
     default: null
   },
+  type: {
+    type: String,
+    enum: ['item', 'claim', 'post', 'system'],
+    default: 'system'
+  },
   read: {
     type: Boolean,
     default: false

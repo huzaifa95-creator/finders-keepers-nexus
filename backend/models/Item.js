@@ -51,6 +51,15 @@ const itemSchema = new mongoose.Schema({
     ref: 'User',
     default: null
   },
+  claim: {
+    description: String,
+    contactInfo: String,
+    proofDetails: String,
+    date: {
+      type: Date,
+      default: Date.now
+    }
+  },
   isHighValue: {
     type: Boolean,
     default: false

@@ -1,6 +1,7 @@
 
 const Item = require('../models/Item');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
 const { validationResult } = require('express-validator');
 const fs = require('fs');
 const path = require('path');
@@ -203,11 +204,18 @@ exports.claimItem = async (req, res) => {
       });
     }
     
-    // Update item status
+    // Get claim details from request
+    const { description, contactInfo, proofDetails } = req.body;
+    
+    // Update item status and claim details
     item.status = 'claimed';
-    if (req.user) {
-      item.claimedBy = req.user.id;
-    }
+    item.claimedBy = req.user ? req.user.id : null;
+    item.claim = {
+      description,
+      contactInfo,
+      proofDetails,
+      date: new Date()
+    };
     
     await item.save();
     
@@ -220,6 +228,18 @@ exports.claimItem = async (req, res) => {
       });
       
       await notification.save();
+    }
+    
+    // Create notification for admin
+    const admins = await User.find({ role: 'admin' });
+    for (const admin of admins) {
+      const adminNotification = new Notification({
+        user: admin._id,
+        message: `New claim requires review: ${item.title}`,
+        relatedItem: item._id
+      });
+      
+      await adminNotification.save();
     }
     
     res.json(item);
@@ -299,6 +319,42 @@ exports.reviewItemClaim = async (req, res) => {
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ message: 'Item not found' });
     }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get pending claims for admin
+exports.getPendingClaims = async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    
+    const items = await Item.find({ status: 'claimed' })
+      .populate('user', 'name email')
+      .populate('claimedBy', 'name email')
+      .sort({ 'claim.date': -1 });
+      
+    // Transform to a more suitable format for the frontend
+    const claims = items.map(item => ({
+      id: item._id,
+      itemId: item._id,
+      itemName: item.title,
+      claimantName: item.claimedBy ? item.claimedBy.name : 'Anonymous',
+      claimantEmail: item.claimedBy ? item.claimedBy.email : 'N/A',
+      dateSubmitted: item.claim ? item.claim.date.toISOString().split('T')[0] : 'Unknown',
+      status: item.status,
+      description: item.claim ? item.claim.description : '',
+      contactInfo: item.claim ? item.claim.contactInfo : '',
+      proofDetails: item.claim ? item.claim.proofDetails : '',
+      itemType: item.type
+    }));
+    
+    res.json(claims);
+    
+  } catch (error) {
+    console.error('Error fetching pending claims:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

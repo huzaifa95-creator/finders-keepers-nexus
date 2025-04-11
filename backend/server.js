@@ -16,6 +16,12 @@ const notificationRoutes = require('./routes/notification.routes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Set JWT secret if not provided
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'yoursecretkey';
+  console.log('WARNING: JWT_SECRET not set, using default value. Set this in production!');
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());

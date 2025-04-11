@@ -1,5 +1,6 @@
 
 const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -12,6 +13,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
     
+    // Check if the email has the required domain
+    if (!email.endsWith('@nu.edu.pk')) {
+      return res.status(400).json({ message: 'Registration is only allowed with @nu.edu.pk email addresses' });
+    }
+    
     // Create new user (password will be hashed by the User model pre-save hook)
     const user = new User({
       name,
@@ -21,6 +27,9 @@ exports.register = async (req, res) => {
     });
     
     await user.save();
+    
+    // Generate token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secretkey', { expiresIn: '1d' });
     
     // Return user without password
     const userResponse = {
@@ -32,6 +41,7 @@ exports.register = async (req, res) => {
     
     res.status(201).json({ 
       user: userResponse,
+      token,
       message: 'User registered successfully'
     });
   } catch (error) {
@@ -57,6 +67,9 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
     
+    // Generate token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secretkey', { expiresIn: '1d' });
+    
     // Return user without password
     const userResponse = {
       _id: user._id,
@@ -67,6 +80,7 @@ exports.login = async (req, res) => {
     
     res.json({ 
       user: userResponse,
+      token,
       message: 'Logged in successfully'
     });
   } catch (error) {

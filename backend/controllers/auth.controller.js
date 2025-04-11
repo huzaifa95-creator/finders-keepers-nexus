@@ -19,6 +19,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // Check if the email has the required domain
+    if (!email.endsWith('@nu.edu.pk')) {
+      return res.status(400).json({ message: 'Registration is only allowed with @nu.edu.pk email addresses' });
+    }
+
     // Create new user
     user = new User({
       name,

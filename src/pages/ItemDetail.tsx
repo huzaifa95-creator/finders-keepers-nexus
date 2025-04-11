@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Navigation from "@/components/Navigation";
@@ -66,7 +65,7 @@ interface Comment {
 const ItemDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
   const [item, setItem] = useState<Item | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -76,7 +75,6 @@ const ItemDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   
-  // Fetch item data
   useEffect(() => {
     const fetchItemDetail = async () => {
       if (!id) return;
@@ -91,13 +89,6 @@ const ItemDetail = () => {
         
         const data = await response.json();
         setItem(data);
-        
-        // Fetch comments for this item (if you have comments functionality)
-        // const commentsResponse = await fetch(`http://localhost:5000/api/items/${id}/comments`);
-        // if (commentsResponse.ok) {
-        //   const commentsData = await commentsResponse.json();
-        //   setComments(commentsData);
-        // }
         
         setError(null);
       } catch (err) {
@@ -114,7 +105,7 @@ const ItemDetail = () => {
   const handleClaimSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !token) {
       toast({
         title: "Authentication Required",
         description: "Please log in to claim this item.",
@@ -124,7 +115,6 @@ const ItemDetail = () => {
       return;
     }
     
-    // Get form data
     const formData = new FormData(event.currentTarget);
     const claimData = {
       description: formData.get('description'),
@@ -139,7 +129,7 @@ const ItemDetail = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(claimData),
       });
@@ -172,7 +162,7 @@ const ItemDetail = () => {
   const handleComment = async () => {
     if (!commentText.trim() || !id) return;
     
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !token) {
       toast({
         title: "Authentication Required",
         description: "Please log in to post a comment.",
@@ -189,7 +179,7 @@ const ItemDetail = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
           text: commentText
@@ -220,7 +210,6 @@ const ItemDetail = () => {
     }
   };
 
-  // Format the date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -230,7 +219,6 @@ const ItemDetail = () => {
     });
   };
   
-  // Time ago format
   const timeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
@@ -253,17 +241,15 @@ const ItemDetail = () => {
     return Math.floor(seconds) + " seconds ago";
   };
 
-  // Check if current user is the owner of the item
   const isOwner = () => {
     if (!isAuthenticated || !user || !item || !item.user) return false;
     return user.id === item.user._id;
   };
 
-  // Check if the item can be claimed
   const canClaim = () => {
     if (!item) return false;
-    if (isOwner()) return false; // Owner can't claim their own item
-    return item.status === 'pending'; // Only pending items can be claimed
+    if (isOwner()) return false;
+    return item.status === 'pending';
   };
 
   if (loading) {
@@ -305,7 +291,6 @@ const ItemDetail = () => {
       <Navigation />
       
       <main className="flex-grow container mx-auto px-4 py-8">
-        {/* Back Navigation */}
         <div className="mb-6">
           <Button variant="ghost" asChild className="flex items-center gap-1 px-2">
             <Link to={item.type === 'lost' ? '/lost-items' : '/found-items'}>
@@ -315,9 +300,7 @@ const ItemDetail = () => {
           </Button>
         </div>
         
-        {/* Item Details */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Image Column */}
           <div className="lg:col-span-1">
             <div className="rounded-lg overflow-hidden border border-border bg-card h-[300px] sm:h-[400px] mb-4">
               <img 
@@ -348,7 +331,6 @@ const ItemDetail = () => {
               </Button>
             </div>
             
-            {/* Status Card */}
             <div className="p-4 rounded-lg border border-border bg-card mb-6">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Item Status</h3>
@@ -392,7 +374,6 @@ const ItemDetail = () => {
               )}
             </div>
             
-            {/* Contact Information */}
             <div className="p-4 rounded-lg border border-border bg-card">
               <h3 className="font-semibold mb-3">Contact Information</h3>
               <div className="space-y-2">
@@ -418,7 +399,6 @@ const ItemDetail = () => {
             </div>
           </div>
           
-          {/* Details Column */}
           <div className="lg:col-span-2 space-y-6">
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -450,7 +430,6 @@ const ItemDetail = () => {
               </div>
             </div>
             
-            {/* Description */}
             <div className="p-6 rounded-lg border border-border bg-card">
               <h2 className="text-xl font-semibold mb-4">Description</h2>
               <p className="text-muted-foreground mb-6">
@@ -467,7 +446,6 @@ const ItemDetail = () => {
               )}
             </div>
             
-            {/* Claim Button - only show if item is pending and user is not the owner */}
             {canClaim() && (
               <div>
                 <Dialog open={isClaimDialogOpen} onOpenChange={setIsClaimDialogOpen}>
@@ -567,7 +545,6 @@ const ItemDetail = () => {
               </div>
             )}
             
-            {/* Status message for non-pending items */}
             {!canClaim() && item.status !== 'pending' && (
               <div className={`
                 p-4 rounded-lg border 
@@ -594,7 +571,6 @@ const ItemDetail = () => {
               </div>
             )}
             
-            {/* Owner can't claim message */}
             {isAuthenticated && isOwner() && item.status === 'pending' && (
               <div className="p-4 rounded-lg border border-border bg-card text-center">
                 <p className="text-muted-foreground">
@@ -606,7 +582,6 @@ const ItemDetail = () => {
               </div>
             )}
             
-            {/* Not logged in message */}
             {!isAuthenticated && item.status === 'pending' && (
               <div className="p-4 rounded-lg border border-border bg-card text-center">
                 <p className="text-muted-foreground mb-3">
@@ -618,7 +593,6 @@ const ItemDetail = () => {
               </div>
             )}
             
-            {/* Comments */}
             <div className="p-6 rounded-lg border border-border bg-card">
               <h2 className="text-xl font-semibold mb-4">Comments</h2>
               

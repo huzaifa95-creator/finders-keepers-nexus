@@ -72,7 +72,7 @@ const Login = () => {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder="Enter your email (@nu.edu.pk)"
                     className="pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -121,7 +121,7 @@ const Login = () => {
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-center text-sm text-muted-foreground">
               <p>
-                Use any email to create an account
+                You must have an @nu.edu.pk email to use this platform
               </p>
               <div className="mt-1">
                 <span>For testing, use:</span>

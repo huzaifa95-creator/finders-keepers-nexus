@@ -12,6 +12,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -24,14 +25,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   // Check if user is already logged in
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
     
     if (storedUser) {
       setUser(JSON.parse(storedUser));
+    }
+    if (storedToken) {
+      setToken(storedToken);
     }
     setIsLoading(false);
   }, []);
@@ -57,14 +63,16 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       
       // Transform backend user to frontend format
       const userData: User = {
-        id: data.user._id,
+        id: data.user.id || data.user._id,
         name: data.user.name,
         email: data.user.email,
         role: data.user.role,
       };
       
       setUser(userData);
+      setToken(data.token);
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', data.token);
       
       return Promise.resolve();
     } catch (error) {
@@ -78,6 +86,11 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     setIsLoading(true);
     
     try {
+      // Validate email domain
+      if (!email.endsWith('@nu.edu.pk')) {
+        throw new Error('Registration is only allowed with @nu.edu.pk email addresses');
+      }
+      
       const response = await fetch('http://localhost:5000/api/auth/register', {
         method: 'POST',
         headers: {
@@ -95,14 +108,16 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       
       // Transform backend user to frontend format
       const userData: User = {
-        id: data.user._id,
+        id: data.user.id || data.user._id,
         name: data.user.name,
         email: data.user.email,
         role: data.user.role || 'student',
       };
       
       setUser(userData);
+      setToken(data.token);
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', data.token);
       
       return Promise.resolve();
     } catch (error) {
@@ -114,14 +129,17 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        token,
+        isAuthenticated: !!user && !!token,
         isLoading,
         login,
         signup,

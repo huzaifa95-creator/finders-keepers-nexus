@@ -11,6 +11,12 @@ dotenv.config();
 // Create Express app
 const app = express();
 
+// Set JWT secret if not provided
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'yoursecretkey';
+  console.log('WARNING: JWT_SECRET not set, using default value. Set this in production!');
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());

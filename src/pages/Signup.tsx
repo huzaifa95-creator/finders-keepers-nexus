@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/context/AuthContext';
-import { Lock, Mail, User, UserPlus, Loader2 } from 'lucide-react';
+import { Lock, Mail, User, UserPlus, Loader2, AlertTriangle } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
@@ -17,9 +17,23 @@ const Signup = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const { signup } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const validateEmail = (email: string) => {
+    if (!email) {
+      setEmailError('');
+      return;
+    }
+    
+    if (!email.endsWith('@nu.edu.pk')) {
+      setEmailError('Registration is only allowed with @nu.edu.pk email addresses');
+    } else {
+      setEmailError('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +42,15 @@ const Signup = () => {
       toast({
         title: "Error",
         description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!email.endsWith('@nu.edu.pk')) {
+      toast({
+        title: "Error",
+        description: "Registration is only allowed with @nu.edu.pk email addresses",
         variant: "destructive",
       });
       return;
@@ -99,15 +122,24 @@ const Signup = () => {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="Enter your email"
-                    className="pl-10"
+                    placeholder="Enter your email (must end with @nu.edu.pk)"
+                    className={`pl-10 ${emailError ? 'border-red-500' : ''}`}
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      validateEmail(e.target.value);
+                    }}
                     autoComplete="email"
                   />
                 </div>
+                {emailError && (
+                  <div className="flex items-center gap-1 text-xs text-red-500">
+                    <AlertTriangle className="h-3 w-3" />
+                    <span>{emailError}</span>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Use any email address (use email with 'admin' in it for admin privileges)
+                  Only <strong>@nu.edu.pk</strong> email addresses are allowed
                 </p>
               </div>
               
@@ -143,7 +175,7 @@ const Signup = () => {
                 </div>
               </div>
               
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || !!emailError}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

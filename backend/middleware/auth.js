@@ -10,7 +10,7 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'No authentication token, authorization denied' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretkey');
     const user = await User.findById(decoded.id).select('-password');
     
     if (!user) {
@@ -20,6 +20,7 @@ const auth = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    console.error('Auth middleware error:', error.message);
     res.status(401).json({ message: 'Token is not valid' });
   }
 };
@@ -34,7 +35,7 @@ const optionalAuth = async (req, res, next) => {
       return next();
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretkey');
     const user = await User.findById(decoded.id).select('-password');
     
     if (user) {
@@ -44,6 +45,7 @@ const optionalAuth = async (req, res, next) => {
     next();
   } catch (error) {
     // Just proceed without user info on error
+    console.error('Optional auth middleware error:', error.message);
     next();
   }
 };

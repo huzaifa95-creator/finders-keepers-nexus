@@ -72,9 +72,7 @@ router.post(
   itemsController.reviewItemClaim
 );
 
-// @route   GET /api/items/claims/pending
-// @desc    Get all pending claims for admin
-// @access  Private (Admin only)
+// Make sure we're providing a proper controller function here
 router.get('/claims/pending', [auth, admin], itemsController.getPendingClaims);
 
 module.exports = router;

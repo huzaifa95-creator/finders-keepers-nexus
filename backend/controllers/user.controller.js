@@ -4,6 +4,17 @@ const Notification = require('../models/Notification');
 const bcrypt = require('bcryptjs');
 const { validationResult } = require('express-validator');
 
+// Get current user
+exports.getCurrentUser = async (req, res) => {
+  try {
+    // Return the current authenticated user
+    res.json(req.user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Get user notifications
 exports.getUserNotifications = async (req, res) => {
   try {
@@ -54,29 +65,22 @@ exports.updateProfile = async (req, res) => {
   }
 
   try {
-    const { name, email } = req.body;
+    const { name } = req.body;
     
-    // Check if email is already in use
-    if (email && email !== req.user.email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ message: 'Email already in use' });
-      }
-    }
-    
-    const updatedFields = {};
-    if (name) updatedFields.name = name;
-    if (email) updatedFields.email = email;
-    
+    // Update user name
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { $set: updatedFields },
+      { $set: { name: name } },
       { new: true }
     ).select('-password');
     
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
     res.json(user);
   } catch (error) {
-    console.error(error);
+    console.error('Error updating profile:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -94,6 +98,10 @@ exports.changePassword = async (req, res) => {
     // Get user with password
     const user = await User.findById(req.user.id);
     
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
     // Check current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
@@ -106,7 +114,7 @@ exports.changePassword = async (req, res) => {
     
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
-    console.error(error);
+    console.error('Error changing password:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -114,10 +122,12 @@ exports.changePassword = async (req, res) => {
 // Admin only: Get all users
 exports.getAllUsers = async (req, res) => {
   try {
+    console.log('Getting all users...');
     const users = await User.find().select('-password');
+    console.log(`Found ${users.length} users`);
     res.json(users);
   } catch (error) {
-    console.error(error);
+    console.error('Error fetching all users:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

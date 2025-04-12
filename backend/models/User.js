@@ -36,6 +36,24 @@ const userSchema = new mongoose.Schema({
   lastActive: {
     type: Date,
     default: Date.now
+  },
+  notifications: {
+    email: {
+      type: Boolean,
+      default: true
+    },
+    itemClaims: {
+      type: Boolean,
+      default: true
+    },
+    comments: {
+      type: Boolean,
+      default: true
+    },
+    matchedItems: {
+      type: Boolean,
+      default: true
+    }
   }
 });
 
@@ -55,6 +73,12 @@ userSchema.pre('save', async function(next) {
 // Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Method to update last active timestamp
+userSchema.methods.updateLastActive = function() {
+  this.lastActive = Date.now();
+  return this.save();
 };
 
 module.exports = mongoose.model('User', userSchema);

@@ -29,10 +29,8 @@ import {
   X,
   Shield,
   ShieldAlert,
-  UserCog,
   Loader2,
-  UserPlus,
-  Eye
+  UserPlus
 } from 'lucide-react';
 import { 
   Dialog,
@@ -41,7 +39,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -85,6 +82,7 @@ const UserManagement = () => {
     status: 'active',
   });
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   
   const { toast } = useToast();
   const { token } = useAuth();
@@ -92,17 +90,18 @@ const UserManagement = () => {
   // Fetch users on component mount
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [retryCount]);
 
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
-    console.log("Fetching users with token:", token?.substring(0, 10) + "...");
     
     try {
+      console.log("Fetching users with token:", token?.substring(0, 10) + "...");
+      
       const response = await fetch('http://localhost:5000/api/users', {
         headers: {
-          Authorization: `Bearer ${token}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -115,14 +114,14 @@ const UserManagement = () => {
       }
       
       const data = await response.json();
-      console.log("Users data received:", data);
+      console.log("Users data received:", data.length);
       setUsers(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching users:', error);
       setError('Failed to load users. Please try again.');
       toast({
         title: "Error",
-        description: "Failed to load users. Please try again.",
+        description: error.message || "Failed to load users. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -325,7 +324,7 @@ const UserManagement = () => {
   };
 
   const handleRetryFetch = () => {
-    fetchUsers();
+    setRetryCount(prevCount => prevCount + 1);
   };
 
   const filteredUsers = users.filter(user => {
@@ -386,6 +385,7 @@ const UserManagement = () => {
         {loading ? (
           <div className="flex justify-center items-center h-40">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2">Loading users...</span>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-40 space-y-4">
@@ -498,24 +498,23 @@ const UserManagement = () => {
                             )}
                             
                             <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <Trash2 className="h-4 w-4 text-red-500" />
-                                  <span className="sr-only">Delete</span>
-                                </Button>
-                              </DialogTrigger>
                               <DialogContent>
                                 <DialogHeader>
                                   <DialogTitle>Confirm Deletion</DialogTitle>
                                   <DialogDescription>
-                                    Are you sure you want to delete the user "{user.name}"? This action cannot be undone.
+                                    Are you sure you want to delete the user "{selectedUser?.name}"? This action cannot be undone.
                                   </DialogDescription>
                                 </DialogHeader>
                                 <DialogFooter>
-                                  <Button variant="outline" onClick={() => {}}>Cancel</Button>
+                                  <Button variant="outline" onClick={() => setSelectedUser(null)}>Cancel</Button>
                                   <Button 
                                     variant="destructive" 
-                                    onClick={() => handleDeleteUser(user._id)}
+                                    onClick={() => {
+                                      if (selectedUser) {
+                                        handleDeleteUser(selectedUser._id);
+                                        setSelectedUser(null);
+                                      }
+                                    }}
                                     disabled={isProcessing}
                                   >
                                     {isProcessing ? (
@@ -529,6 +528,15 @@ const UserManagement = () => {
                                   </Button>
                                 </DialogFooter>
                               </DialogContent>
+                              
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => setSelectedUser(user)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                                <span className="sr-only">Delete</span>
+                              </Button>
                             </Dialog>
                           </div>
                         </TableCell>

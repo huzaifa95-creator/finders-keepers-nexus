@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,11 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/context/AuthContext';
-import { User, ShieldCheck, Lock, Bell, Bookmark } from 'lucide-react';
+import { User, ShieldCheck, Lock, Bell, Bookmark, Loader2 } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 
 const Profile = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, token, updateUserInfo } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -22,7 +22,11 @@ const Profile = () => {
   
   // User details state
   const [name, setName] = useState(user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
+  const [isAdmin, setIsAdmin] = useState(user?.role === 'admin');
+  
+  // Loading states
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   
   // Notification preferences
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -30,16 +34,55 @@ const Profile = () => {
   const [commentNotifications, setCommentNotifications] = useState(true);
   const [matchedItemNotifications, setMatchedItemNotifications] = useState(true);
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  // Set initial values when user data loads
+  useEffect(() => {
+    if (user) {
+      setName(user.name);
+      setIsAdmin(user.role === 'admin');
+    }
+  }, [user]);
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would call an API to update the user's profile
-    toast({
-      title: "Profile Updated",
-      description: "Your profile information has been successfully updated."
-    });
+    setIsUpdatingProfile(true);
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+      
+      const updatedUser = await response.json();
+      
+      // Update the user info in context
+      updateUserInfo(updatedUser);
+      
+      toast({
+        title: "Profile Updated",
+        description: "Your profile information has been successfully updated."
+      });
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update profile. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (newPassword !== confirmPassword) {
@@ -51,16 +94,45 @@ const Profile = () => {
       return;
     }
     
-    // In a real app, this would call an API to update the user's password
-    toast({
-      title: "Password Updated",
-      description: "Your password has been successfully updated."
-    });
+    setIsUpdatingPassword(true);
     
-    // Reset the form
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      const response = await fetch('http://localhost:5000/api/users/password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update password');
+      }
+      
+      // Reset the form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      
+      toast({
+        title: "Password Updated",
+        description: "Your password has been successfully updated."
+      });
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update password. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
   };
 
   const handleUpdateNotifications = (e: React.FormEvent) => {
@@ -129,8 +201,7 @@ const Profile = () => {
                       <Input 
                         id="email" 
                         type="email" 
-                        value={email} 
-                        onChange={(e) => setEmail(e.target.value)} 
+                        value={user.email} 
                         placeholder="Your email"
                         disabled
                       />
@@ -142,12 +213,21 @@ const Profile = () => {
                       <Label>Account Type</Label>
                       <div className="flex items-center space-x-2 rounded-md border p-2">
                         <ShieldCheck className={`h-5 w-5 ${isAdmin ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <span className="font-medium">{isAdmin ? 'Administrator' : 'Student'}</span>
+                        <span className="font-medium">{user.role === 'admin' ? 'Administrator' : user.role === 'staff' ? 'Staff' : 'Student'}</span>
                       </div>
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <Button type="submit">Save Changes</Button>
+                    <Button type="submit" disabled={isUpdatingProfile}>
+                      {isUpdatingProfile ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save Changes'
+                      )}
+                    </Button>
                   </CardFooter>
                 </form>
               </Card>
@@ -195,7 +275,19 @@ const Profile = () => {
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <Button type="submit">Update Password</Button>
+                    <Button 
+                      type="submit" 
+                      disabled={isUpdatingPassword || !currentPassword || !newPassword || !confirmPassword}
+                    >
+                      {isUpdatingPassword ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        'Update Password'
+                      )}
+                    </Button>
                   </CardFooter>
                 </form>
               </Card>

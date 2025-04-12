@@ -10,6 +10,11 @@ const { auth, admin } = require('../middleware/auth');
 // @access  Private (Admin only)
 router.get('/', [auth, admin], userController.getAllUsers);
 
+// @route   GET /api/users/me
+// @desc    Get current user
+// @access  Private
+router.get('/me', auth, userController.getCurrentUser);
+
 // @route   GET /api/users/notifications
 // @desc    Get user notifications
 // @access  Private
@@ -28,8 +33,7 @@ router.put(
   [
     auth,
     [
-      check('name', 'Name is required').optional().not().isEmpty(),
-      check('email', 'Please include a valid email').optional().isEmail()
+      check('name', 'Name is required').not().isEmpty(),
     ]
   ],
   userController.updateProfile

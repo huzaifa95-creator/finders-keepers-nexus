@@ -25,35 +25,6 @@ router.get('/notifications', auth, userController.getUserNotifications);
 // @access  Private
 router.put('/notifications/:id', auth, userController.markNotificationRead);
 
-// @route   PUT /api/users/profile
-// @desc    Update user profile
-// @access  Private
-router.put(
-  '/profile',
-  [
-    auth,
-    [
-      check('name', 'Name is required').not().isEmpty(),
-    ]
-  ],
-  userController.updateProfile
-);
-
-// @route   PUT /api/users/password
-// @desc    Change password
-// @access  Private
-router.put(
-  '/password',
-  [
-    auth,
-    [
-      check('currentPassword', 'Current password is required').not().isEmpty(),
-      check('newPassword', 'New password must be at least 6 characters').isLength({ min: 6 })
-    ]
-  ],
-  userController.changePassword
-);
-
 // @route   POST /api/users
 // @desc    Create a new user (admin only)
 // @access  Private (Admin only)

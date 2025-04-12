@@ -30,7 +30,8 @@ import {
   Shield,
   ShieldAlert,
   Loader2,
-  UserPlus
+  UserPlus,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   Dialog,
@@ -39,11 +40,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface User {
   _id: string;
@@ -74,6 +77,7 @@ const UserManagement = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [newUser, setNewUser] = useState<NewUser>({
     name: '',
     email: '',
@@ -90,7 +94,7 @@ const UserManagement = () => {
   // Fetch users on component mount
   useEffect(() => {
     fetchUsers();
-  }, [retryCount]);
+  }, [retryCount, token]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -101,16 +105,38 @@ const UserManagement = () => {
       
       const response = await fetch('http://localhost:5000/api/users', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
         }
       });
       
       console.log("Response status:", response.status);
       
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error response:", errorData);
-        throw new Error(errorData.message || 'Failed to fetch users');
+        if (response.status === 404) {
+          throw new Error('API endpoint not found. Please check server configuration.');
+        }
+        
+        const text = await response.text();
+        console.error("Error response text:", text);
+        
+        let errorMessage;
+        try {
+          // Try to parse as JSON
+          const errorData = JSON.parse(text);
+          errorMessage = errorData.message || 'Failed to fetch users';
+        } catch (e) {
+          // Not valid JSON
+          errorMessage = 'Invalid response from server';
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not valid JSON. Check server configuration.');
       }
       
       const data = await response.json();
@@ -118,7 +144,7 @@ const UserManagement = () => {
       setUsers(data);
     } catch (error: any) {
       console.error('Error fetching users:', error);
-      setError('Failed to load users. Please try again.');
+      setError(error.message || 'Failed to load users. Please try again.');
       toast({
         title: "Error",
         description: error.message || "Failed to load users. Please try again.",
@@ -157,7 +183,8 @@ const UserManagement = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           name: editedUser.name,
@@ -168,8 +195,15 @@ const UserManagement = () => {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update user');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to update user');
+        } else {
+          const text = await response.text();
+          console.error("Error response text:", text);
+          throw new Error('Invalid response from server');
+        }
       }
       
       const updatedUser = await response.json();
@@ -211,14 +245,22 @@ const UserManagement = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
         },
         body: JSON.stringify(newUser)
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create user');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to create user');
+        } else {
+          const text = await response.text();
+          console.error("Error response text:", text);
+          throw new Error('Invalid response from server');
+        }
       }
       
       const createdUser = await response.json();
@@ -256,13 +298,21 @@ const UserManagement = () => {
       const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
         }
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete user');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to delete user');
+        } else {
+          const text = await response.text();
+          console.error("Error response text:", text);
+          throw new Error('Invalid response from server');
+        }
       }
       
       setUsers(users.filter(user => user._id !== userId));
@@ -280,6 +330,7 @@ const UserManagement = () => {
       });
     } finally {
       setIsProcessing(false);
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -291,14 +342,22 @@ const UserManagement = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ status: newStatus })
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update user status');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to update user status');
+        } else {
+          const text = await response.text();
+          console.error("Error response text:", text);
+          throw new Error('Invalid response from server');
+        }
       }
       
       const updatedUser = await response.json();
@@ -389,10 +448,11 @@ const UserManagement = () => {
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-40 space-y-4">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative max-w-md">
-              <strong className="font-bold">Error!</strong>
-              <span className="block sm:inline"> {error}</span>
-            </div>
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
             <Button onClick={handleRetryFetch} variant="outline">
               <Loader2 className="mr-2 h-4 w-4" />
               Retry
@@ -497,47 +557,17 @@ const UserManagement = () => {
                               </Button>
                             )}
                             
-                            <Dialog>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Confirm Deletion</DialogTitle>
-                                  <DialogDescription>
-                                    Are you sure you want to delete the user "{selectedUser?.name}"? This action cannot be undone.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter>
-                                  <Button variant="outline" onClick={() => setSelectedUser(null)}>Cancel</Button>
-                                  <Button 
-                                    variant="destructive" 
-                                    onClick={() => {
-                                      if (selectedUser) {
-                                        handleDeleteUser(selectedUser._id);
-                                        setSelectedUser(null);
-                                      }
-                                    }}
-                                    disabled={isProcessing}
-                                  >
-                                    {isProcessing ? (
-                                      <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Processing
-                                      </>
-                                    ) : (
-                                      'Delete User'
-                                    )}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                              
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => setSelectedUser(user)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                                <span className="sr-only">Delete</span>
-                              </Button>
-                            </Dialog>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -563,15 +593,15 @@ const UserManagement = () => {
         )}
         
         {/* Edit User Dialog */}
-        {editedUser && (
-          <Dialog open={isEditing} onOpenChange={(open) => !open && setIsEditing(false)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit User</DialogTitle>
-                <DialogDescription>
-                  Update user information and permissions.
-                </DialogDescription>
-              </DialogHeader>
+        <Dialog open={isEditing} onOpenChange={(open) => !open && setIsEditing(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit User</DialogTitle>
+              <DialogDescription>
+                Update user information and permissions.
+              </DialogDescription>
+            </DialogHeader>
+            {editedUser && (
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-name" className="text-right">
@@ -632,30 +662,63 @@ const UserManagement = () => {
                   </Select>
                 </div>
               </div>
-              <DialogFooter>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsEditing(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleSaveUser}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving
-                    </>
-                  ) : (
-                    'Save Changes'
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+            )}
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditing(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveUser}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete the user "{selectedUser?.name}"? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  if (selectedUser) {
+                    handleDeleteUser(selectedUser._id);
+                  }
+                }}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing
+                  </>
+                ) : (
+                  'Delete User'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         
         {/* Add User Dialog */}
         <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>

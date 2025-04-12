@@ -84,6 +84,7 @@ const UserManagement = () => {
     role: 'student',
     status: 'active',
   });
+  const [error, setError] = useState<string | null>(null);
   
   const { toast } = useToast();
   const { token } = useAuth();
@@ -95,6 +96,9 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
+    setError(null);
+    console.log("Fetching users with token:", token?.substring(0, 10) + "...");
+    
     try {
       const response = await fetch('http://localhost:5000/api/users', {
         headers: {
@@ -102,14 +106,20 @@ const UserManagement = () => {
         }
       });
       
+      console.log("Response status:", response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        throw new Error(errorData.message || 'Failed to fetch users');
       }
       
       const data = await response.json();
+      console.log("Users data received:", data);
       setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
+      setError('Failed to load users. Please try again.');
       toast({
         title: "Error",
         description: "Failed to load users. Please try again.",
@@ -314,6 +324,10 @@ const UserManagement = () => {
     }
   };
 
+  const handleRetryFetch = () => {
+    fetchUsers();
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -372,6 +386,17 @@ const UserManagement = () => {
         {loading ? (
           <div className="flex justify-center items-center h-40">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-40 space-y-4">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative max-w-md">
+              <strong className="font-bold">Error!</strong>
+              <span className="block sm:inline"> {error}</span>
+            </div>
+            <Button onClick={handleRetryFetch} variant="outline">
+              <Loader2 className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
           </div>
         ) : (
           <div className="space-y-4">

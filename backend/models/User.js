@@ -21,10 +21,19 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['student', 'admin'],
+    enum: ['student', 'staff', 'admin'],
     default: 'student'
   },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'suspended'],
+    default: 'active'
+  },
   createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  lastActive: {
     type: Date,
     default: Date.now
   }

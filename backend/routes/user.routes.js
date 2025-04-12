@@ -50,6 +50,25 @@ router.put(
   userController.changePassword
 );
 
+// @route   POST /api/users
+// @desc    Create a new user (admin only)
+// @access  Private (Admin only)
+router.post(
+  '/',
+  [
+    auth,
+    admin,
+    [
+      check('name', 'Name is required').not().isEmpty(),
+      check('email', 'Please include a valid email').isEmail(),
+      check('password', 'Password must be at least 6 characters').isLength({ min: 6 }),
+      check('role', 'Invalid role').optional().isIn(['student', 'staff', 'admin']),
+      check('status', 'Invalid status').optional().isIn(['active', 'inactive', 'suspended'])
+    ]
+  ],
+  userController.createUser
+);
+
 // @route   GET /api/users/:id
 // @desc    Get user by ID (admin only)
 // @access  Private (Admin only)
@@ -59,6 +78,21 @@ router.get('/:id', [auth, admin], userController.getUserById);
 // @desc    Update user (admin only)
 // @access  Private (Admin only)
 router.put('/:id', [auth, admin], userController.updateUser);
+
+// @route   PUT /api/users/:id/status
+// @desc    Change user status (admin only)
+// @access  Private (Admin only)
+router.put(
+  '/:id/status',
+  [
+    auth,
+    admin,
+    [
+      check('status', 'Status is required').isIn(['active', 'inactive', 'suspended'])
+    ]
+  ],
+  userController.changeUserStatus
+);
 
 // @route   DELETE /api/users/:id
 // @desc    Delete user (admin only)

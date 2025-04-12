@@ -144,12 +144,13 @@ exports.getUserById = async (req, res) => {
 // Admin only: Update user
 exports.updateUser = async (req, res) => {
   try {
-    const { name, email, role } = req.body;
+    const { name, email, role, status } = req.body;
     
     const updatedFields = {};
     if (name) updatedFields.name = name;
     if (email) updatedFields.email = email;
     if (role) updatedFields.role = role;
+    if (status) updatedFields.status = status;
     
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -171,6 +172,51 @@ exports.updateUser = async (req, res) => {
   }
 };
 
+// Admin only: Create new user
+exports.createUser = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { name, email, password, role = 'student', status = 'active' } = req.body;
+    
+    // Validate email format for students (must be @nu.edu.pk)
+    if (role === 'student' && !email.toLowerCase().endsWith('@nu.edu.pk')) {
+      return res.status(400).json({ 
+        message: 'Student email must be a valid NU email address (ending with @nu.edu.pk)' 
+      });
+    }
+    
+    // Check if user with this email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email already exists' });
+    }
+    
+    // Create new user
+    const newUser = new User({
+      name,
+      email,
+      password,
+      role,
+      status
+    });
+    
+    await newUser.save();
+    
+    // Don't return password in response
+    const userResponse = newUser.toObject();
+    delete userResponse.password;
+    
+    res.status(201).json(userResponse);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Admin only: Delete user
 exports.deleteUser = async (req, res) => {
   try {
@@ -180,9 +226,51 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    await user.remove();
+    // Prevent deleting your own account
+    if (user._id.toString() === req.user.id) {
+      return res.status(400).json({ message: 'You cannot delete your own account' });
+    }
     
-    res.json({ message: 'User removed' });
+    await User.findByIdAndDelete(req.params.id);
+    
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin only: Change user status
+exports.changeUserStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!['active', 'inactive', 'suspended'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status value' });
+    }
+    
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Prevent changing your own status
+    if (user._id.toString() === req.user.id) {
+      return res.status(400).json({ message: 'You cannot change your own status' });
+    }
+    
+    user.status = status;
+    await user.save();
+    
+    // Don't return password in response
+    const userResponse = user.toObject();
+    delete userResponse.password;
+    
+    res.json(userResponse);
   } catch (error) {
     console.error(error);
     if (error.kind === 'ObjectId') {

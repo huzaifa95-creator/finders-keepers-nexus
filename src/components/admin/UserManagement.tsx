@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,6 @@ import { Badge } from '@/components/ui/badge';
 import { 
   User as UserIcon, 
   Search, 
-  Filter, 
   Trash2, 
   Edit, 
   Check, 
@@ -31,7 +30,9 @@ import {
   Shield,
   ShieldAlert,
   UserCog,
-  Loader2 
+  Loader2,
+  UserPlus,
+  Eye
 } from 'lucide-react';
 import { 
   Dialog,
@@ -45,87 +46,28 @@ import {
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
-// Mock users for the admin dashboard
-const mockUsers = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'k224567@nu.edu.pk',
-    role: 'student',
-    status: 'active',
-    dateRegistered: '12 Sep 2023',
-    lastActive: '2 hours ago'
-  },
-  {
-    id: '2',
-    name: 'Jane Smith',
-    email: 'k225678@nu.edu.pk',
-    role: 'student',
-    status: 'active',
-    dateRegistered: '15 Sep 2023',
-    lastActive: '1 day ago'
-  },
-  {
-    id: '3',
-    name: 'David Wilson',
-    email: 'david.wilson@nu.edu.pk',
-    role: 'staff',
-    status: 'active',
-    dateRegistered: '10 Aug 2023',
-    lastActive: '5 hours ago'
-  },
-  {
-    id: '4',
-    name: 'Sarah Ahmed',
-    email: 'k223456@nu.edu.pk',
-    role: 'student',
-    status: 'inactive',
-    dateRegistered: '5 Jun 2023',
-    lastActive: '2 months ago'
-  },
-  {
-    id: '5',
-    name: 'James Brown',
-    email: 'james.brown@nu.edu.pk',
-    role: 'admin',
-    status: 'active',
-    dateRegistered: '2 Jan 2023',
-    lastActive: '30 minutes ago'
-  },
-  {
-    id: '6',
-    name: 'Maria Garcia',
-    email: 'k227890@nu.edu.pk',
-    role: 'student',
-    status: 'active',
-    dateRegistered: '10 Oct 2023',
-    lastActive: '3 days ago'
-  },
-  {
-    id: '7',
-    name: 'Ahmed Khan',
-    email: 'ahmed.khan@nu.edu.pk',
-    role: 'staff',
-    status: 'active',
-    dateRegistered: '8 Apr 2023',
-    lastActive: '1 week ago'
-  },
-  {
-    id: '8',
-    name: 'Lisa Chen',
-    email: 'k229012@nu.edu.pk',
-    role: 'student',
-    status: 'suspended',
-    dateRegistered: '20 Mar 2023',
-    lastActive: '2 weeks ago'
-  }
-];
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: 'student' | 'staff' | 'admin';
+  status: 'active' | 'inactive' | 'suspended';
+  createdAt: string;
+  lastActive?: string;
+}
 
-type User = typeof mockUsers[0];
+interface NewUser {
+  name: string;
+  email: string;
+  password: string;
+  role: 'student' | 'staff' | 'admin';
+  status: 'active' | 'inactive' | 'suspended';
+}
 
 const UserManagement = () => {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -133,7 +75,50 @@ const UserManagement = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState<User | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [newUser, setNewUser] = useState<NewUser>({
+    name: '',
+    email: '',
+    password: '',
+    role: 'student',
+    status: 'active',
+  });
+  
   const { toast } = useToast();
+  const { token } = useAuth();
+
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/users', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load users. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -153,57 +138,180 @@ const UserManagement = () => {
     setIsEditing(true);
   };
 
-  const handleSaveUser = () => {
+  const handleSaveUser = async () => {
     if (!editedUser) return;
     
     setIsProcessing(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      const updatedUsers = users.map(user => 
-        user.id === editedUser.id ? editedUser : user
-      );
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${editedUser._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: editedUser.name,
+          email: editedUser.email,
+          role: editedUser.role,
+          status: editedUser.status
+        })
+      });
       
-      setUsers(updatedUsers);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update user');
+      }
+      
+      const updatedUser = await response.json();
+      
+      setUsers(users.map(user => 
+        user._id === updatedUser._id ? updatedUser : user
+      ));
+      
       setIsEditing(false);
       setSelectedUser(null);
       setEditedUser(null);
-      setIsProcessing(false);
       
       toast({
         title: "User Updated",
-        description: `${editedUser.name}'s information has been updated.`,
+        description: `${updatedUser.name}'s information has been updated.`,
       });
-    }, 1000);
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleAddUser = async () => {
     setIsProcessing(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      const updatedUsers = users.filter(user => user.id !== userId);
-      setUsers(updatedUsers);
+    try {
+      // Validate student email
+      if (newUser.role === 'student' && !newUser.email.toLowerCase().endsWith('@nu.edu.pk')) {
+        throw new Error('Student email must end with @nu.edu.pk');
+      }
+      
+      const response = await fetch('http://localhost:5000/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newUser)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create user');
+      }
+      
+      const createdUser = await response.json();
+      
+      setUsers([...users, createdUser]);
+      setIsAddUserOpen(false);
+      setNewUser({
+        name: '',
+        email: '',
+        password: '',
+        role: 'student',
+        status: 'active',
+      });
+      
+      toast({
+        title: "User Created",
+        description: `${createdUser.name} has been successfully added.`,
+      });
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Creation Failed",
+        description: error.message || "Failed to create user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    setIsProcessing(true);
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete user');
+      }
+      
+      setUsers(users.filter(user => user._id !== userId));
       
       toast({
         title: "User Deleted",
         description: "The user has been successfully removed from the system.",
       });
-    }, 1000);
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Deletion Failed",
+        description: error.message || "Failed to delete user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleStatusChange = (userId: string, newStatus: 'active' | 'inactive' | 'suspended') => {
-    const updatedUsers = users.map(user => 
-      user.id === userId ? {...user, status: newStatus} : user
-    );
+  const handleStatusChange = async (userId: string, newStatus: 'active' | 'inactive' | 'suspended') => {
+    setIsProcessing(true);
     
-    setUsers(updatedUsers);
-    
-    toast({
-      title: "Status Updated",
-      description: `User status has been changed to ${newStatus}.`,
-    });
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${userId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update user status');
+      }
+      
+      const updatedUser = await response.json();
+      
+      setUsers(users.map(user => 
+        user._id === updatedUser._id ? updatedUser : user
+      ));
+      
+      toast({
+        title: "Status Updated",
+        description: `User status has been changed to ${newStatus}.`,
+      });
+    } catch (error: any) {
+      console.error('Error updating user status:', error);
+      toast({
+        title: "Status Update Failed",
+        description: error.message || "Failed to update user status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const filteredUsers = users.filter(user => {
@@ -243,6 +351,15 @@ const UserManagement = () => {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -252,212 +369,165 @@ const UserManagement = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search users..."
-                className="pl-10"
-                value={searchTerm}
-                onChange={handleSearch}
-              />
+        {loading ? (
+          <div className="flex justify-center items-center h-40">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-grow">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search users..."
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={handleSearch}
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Select value={roleFilter} onValueChange={handleRoleFilter}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={statusFilter} onValueChange={handleStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
-            <div className="flex gap-2">
-              <Select value={roleFilter} onValueChange={handleRoleFilter}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={statusFilter} onValueChange={handleStatusFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <ScrollArea className="h-[500px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Registered</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {getRoleIcon(user.role)}
-                          <span className="capitalize">{user.role}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(user.status)}</TableCell>
-                      <TableCell>{user.dateRegistered}</TableCell>
-                      <TableCell>{user.lastActive}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleEditUser(user)}
-                          >
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                          
-                          {user.status === 'active' ? (
+            <ScrollArea className="h-[500px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Registered</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.length > 0 ? (
+                    filteredUsers.map((user) => (
+                      <TableRow key={user._id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {getRoleIcon(user.role)}
+                            <span className="capitalize">{user.role}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(user.status)}</TableCell>
+                        <TableCell>{formatDate(user.createdAt)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              onClick={() => handleStatusChange(user.id, 'suspended')}
+                              onClick={() => handleEditUser(user)}
                             >
-                              <X className="h-4 w-4 text-red-500" />
-                              <span className="sr-only">Suspend</span>
+                              <Edit className="h-4 w-4" />
+                              <span className="sr-only">Edit</span>
                             </Button>
-                          ) : (
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleStatusChange(user.id, 'active')}
-                            >
-                              <Check className="h-4 w-4 text-green-500" />
-                              <span className="sr-only">Activate</span>
-                            </Button>
-                          )}
-                          
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                                <span className="sr-only">Delete</span>
+                            
+                            {user.status === 'active' ? (
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleStatusChange(user._id, 'suspended')}
+                                disabled={isProcessing}
+                              >
+                                <X className="h-4 w-4 text-red-500" />
+                                <span className="sr-only">Suspend</span>
                               </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Confirm Deletion</DialogTitle>
-                                <DialogDescription>
-                                  Are you sure you want to delete the user "{user.name}"? This action cannot be undone.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter>
-                                <Button variant="outline" onClick={() => {}}>Cancel</Button>
-                                <Button 
-                                  variant="destructive" 
-                                  onClick={() => handleDeleteUser(user.id)}
-                                  disabled={isProcessing}
-                                >
-                                  {isProcessing ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Processing
-                                    </>
-                                  ) : (
-                                    'Delete User'
-                                  )}
+                            ) : (
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleStatusChange(user._id, 'active')}
+                                disabled={isProcessing}
+                              >
+                                <Check className="h-4 w-4 text-green-500" />
+                                <span className="sr-only">Activate</span>
+                              </Button>
+                            )}
+                            
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                  <span className="sr-only">Delete</span>
                                 </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Confirm Deletion</DialogTitle>
+                                  <DialogDescription>
+                                    Are you sure you want to delete the user "{user.name}"? This action cannot be undone.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                  <Button variant="outline" onClick={() => {}}>Cancel</Button>
+                                  <Button 
+                                    variant="destructive" 
+                                    onClick={() => handleDeleteUser(user._id)}
+                                    disabled={isProcessing}
+                                  >
+                                    {isProcessing ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Processing
+                                      </>
+                                    ) : (
+                                      'Delete User'
+                                    )}
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        No users found
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      No users found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-          
-          <div className="flex justify-end">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button>
-                  <UserCog className="mr-2 h-4 w-4" />
-                  Add New User
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New User</DialogTitle>
-                  <DialogDescription>
-                    Create a new user account for the Lost & Found system.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">
-                      Name
-                    </Label>
-                    <Input id="name" className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">
-                      Email
-                    </Label>
-                    <Input id="email" className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="role" className="text-right">
-                      Role
-                    </Label>
-                    <Select defaultValue="student">
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="status" className="text-right">
-                      Status
-                    </Label>
-                    <div className="flex items-center gap-2 col-span-3">
-                      <Switch id="status" defaultChecked />
-                      <Label htmlFor="status">Active</Label>
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Create User</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+            
+            <div className="flex justify-end">
+              <Button onClick={() => setIsAddUserOpen(true)}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add New User
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
         
         {/* Edit User Dialog */}
         {editedUser && (
@@ -498,7 +568,7 @@ const UserManagement = () => {
                   </Label>
                   <Select 
                     value={editedUser.role}
-                    onValueChange={(value) => setEditedUser({...editedUser, role: value})}
+                    onValueChange={(value: 'student' | 'staff' | 'admin') => setEditedUser({...editedUser, role: value})}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Select a role" />
@@ -516,7 +586,7 @@ const UserManagement = () => {
                   </Label>
                   <Select 
                     value={editedUser.status}
-                    onValueChange={(value: any) => setEditedUser({...editedUser, status: value})}
+                    onValueChange={(value: 'active' | 'inactive' | 'suspended') => setEditedUser({...editedUser, status: value})}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Select a status" />
@@ -553,6 +623,127 @@ const UserManagement = () => {
             </DialogContent>
           </Dialog>
         )}
+        
+        {/* Add User Dialog */}
+        <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New User</DialogTitle>
+              <DialogDescription>
+                Create a new user account for the Lost & Found system.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Name
+                </Label>
+                <Input 
+                  id="name" 
+                  className="col-span-3" 
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email" className="text-right">
+                  Email
+                </Label>
+                <Input 
+                  id="email" 
+                  type="email"
+                  className="col-span-3" 
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                  required
+                />
+                {newUser.role === 'student' && (
+                  <p className="col-span-3 col-start-2 text-xs text-muted-foreground">
+                    Student email must end with @nu.edu.pk
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="password" className="text-right">
+                  Password
+                </Label>
+                <Input 
+                  id="password" 
+                  type="password"
+                  className="col-span-3" 
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                  required
+                />
+                <p className="col-span-3 col-start-2 text-xs text-muted-foreground">
+                  Password must be at least 6 characters
+                </p>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="role" className="text-right">
+                  Role
+                </Label>
+                <Select 
+                  value={newUser.role}
+                  onValueChange={(value: 'student' | 'staff' | 'admin') => setNewUser({...newUser, role: value})}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">
+                  Status
+                </Label>
+                <div className="flex items-center gap-2 col-span-3">
+                  <Switch 
+                    id="status" 
+                    checked={newUser.status === 'active'}
+                    onCheckedChange={(checked) => setNewUser({...newUser, status: checked ? 'active' : 'inactive'})}
+                  />
+                  <Label htmlFor="status">Active</Label>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsAddUserOpen(false);
+                  setNewUser({
+                    name: '',
+                    email: '',
+                    password: '',
+                    role: 'student',
+                    status: 'active',
+                  });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAddUser}
+                disabled={isProcessing || !newUser.name || !newUser.email || !newUser.password}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating
+                  </>
+                ) : (
+                  'Create User'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

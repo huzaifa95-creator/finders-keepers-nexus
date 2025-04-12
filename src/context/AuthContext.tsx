@@ -1,7 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type UserRole = 'student' | 'admin';
+type UserRole = 'student' | 'admin' | 'staff';
 
 interface User {
   id: string;
@@ -19,6 +18,7 @@ interface AuthContextType {
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
+  updateUserInfo: (updatedUser: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -134,6 +134,11 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     localStorage.removeItem('token');
   };
 
+  const updateUserInfo = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -145,6 +150,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
         signup,
         logout,
         isAdmin: user?.role === 'admin',
+        updateUserInfo,
       }}
     >
       {children}

@@ -64,7 +64,12 @@ const Profile = () => {
       const updatedUser = await response.json();
       
       // Update the user info in context
-      updateUserInfo(updatedUser);
+      updateUserInfo({
+        id: updatedUser.id || updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      });
       
       toast({
         title: "Profile Updated",
@@ -213,7 +218,13 @@ const Profile = () => {
                       <Label>Account Type</Label>
                       <div className="flex items-center space-x-2 rounded-md border p-2">
                         <ShieldCheck className={`h-5 w-5 ${isAdmin ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <span className="font-medium">{user.role === 'admin' ? 'Administrator' : user.role === 'staff' ? 'Staff' : 'Student'}</span>
+                        <span className="font-medium">
+                          {user.role === 'admin' 
+                            ? 'Administrator' 
+                            : user.role === 'staff' 
+                              ? 'Staff' 
+                              : 'Student'}
+                        </span>
                       </div>
                     </div>
                   </CardContent>
